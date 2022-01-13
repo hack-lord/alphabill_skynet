@@ -1,7 +1,6 @@
 package eventbus
 
 import (
-	"strings"
 	"testing"
 
 	test "gitdc.ee.guardtime.com/alphabill/alphabill/internal/testutils"
@@ -63,7 +62,7 @@ func TestSubmit_Ok(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		m := <-channel
-		return strings.EqualFold(m.(string), "Hello!")
+		return m.(string) == "Hello!"
 	}, test.WaitDuration, test.WaitTick)
 }
 

@@ -11,7 +11,7 @@ var (
 	ErrTopicNotFound   = errors.New("topic not found")
 )
 
-// EventBus enables publishers to publish date to interested subscribers.
+// EventBus enables publishers to publish data to interested subscribers.
 type EventBus struct {
 	mutex   sync.Mutex
 	closing bool
