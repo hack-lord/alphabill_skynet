@@ -74,6 +74,7 @@ func newShardCmd(ctx context.Context, rootConfig *rootConfiguration, shardRunFun
 }
 
 func defaultShardRunFunc(ctx context.Context, cfg *shardConfiguration) error {
+	// TODO create genesis block and add to ledger
 	billsState, err := txsystem.NewMoneySchemeState(crypto.SHA256, cfg.UnicityTrustBase, &txsystem.InitialBill{
 		ID:    uint256.NewInt(defaultInitialBillId),
 		Value: cfg.InitialBillValue,

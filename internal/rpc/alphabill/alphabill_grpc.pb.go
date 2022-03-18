@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AlphaBillServiceClient interface {
 	GetBlocks(ctx context.Context, in *GetBlocksRequest, opts ...grpc.CallOption) (AlphaBillService_GetBlocksClient, error)
+	GetGenesisBlock(ctx context.Context, in *GetGenesisBlockRequest, opts ...grpc.CallOption) (*GetGenesisBlockResponse, error)
 	ProcessTransaction(ctx context.Context, in *transaction.Transaction, opts ...grpc.CallOption) (*transaction.TransactionResponse, error)
 }
 
@@ -63,6 +64,15 @@ func (x *alphaBillServiceGetBlocksClient) Recv() (*GetBlocksResponse, error) {
 	return m, nil
 }
 
+func (c *alphaBillServiceClient) GetGenesisBlock(ctx context.Context, in *GetGenesisBlockRequest, opts ...grpc.CallOption) (*GetGenesisBlockResponse, error) {
+	out := new(GetGenesisBlockResponse)
+	err := c.cc.Invoke(ctx, "/abrpc.AlphaBillService/GetGenesisBlock", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *alphaBillServiceClient) ProcessTransaction(ctx context.Context, in *transaction.Transaction, opts ...grpc.CallOption) (*transaction.TransactionResponse, error) {
 	out := new(transaction.TransactionResponse)
 	err := c.cc.Invoke(ctx, "/abrpc.AlphaBillService/ProcessTransaction", in, out, opts...)
@@ -77,6 +87,7 @@ func (c *alphaBillServiceClient) ProcessTransaction(ctx context.Context, in *tra
 // for forward compatibility
 type AlphaBillServiceServer interface {
 	GetBlocks(*GetBlocksRequest, AlphaBillService_GetBlocksServer) error
+	GetGenesisBlock(context.Context, *GetGenesisBlockRequest) (*GetGenesisBlockResponse, error)
 	ProcessTransaction(context.Context, *transaction.Transaction) (*transaction.TransactionResponse, error)
 	mustEmbedUnimplementedAlphaBillServiceServer()
 }
@@ -87,6 +98,9 @@ type UnimplementedAlphaBillServiceServer struct {
 
 func (UnimplementedAlphaBillServiceServer) GetBlocks(*GetBlocksRequest, AlphaBillService_GetBlocksServer) error {
 	return status.Errorf(codes.Unimplemented, "method GetBlocks not implemented")
+}
+func (UnimplementedAlphaBillServiceServer) GetGenesisBlock(context.Context, *GetGenesisBlockRequest) (*GetGenesisBlockResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetGenesisBlock not implemented")
 }
 func (UnimplementedAlphaBillServiceServer) ProcessTransaction(context.Context, *transaction.Transaction) (*transaction.TransactionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ProcessTransaction not implemented")
@@ -125,6 +139,24 @@ func (x *alphaBillServiceGetBlocksServer) Send(m *GetBlocksResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
+func _AlphaBillService_GetGenesisBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetGenesisBlockRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AlphaBillServiceServer).GetGenesisBlock(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/abrpc.AlphaBillService/GetGenesisBlock",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AlphaBillServiceServer).GetGenesisBlock(ctx, req.(*GetGenesisBlockRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AlphaBillService_ProcessTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(transaction.Transaction)
 	if err := dec(in); err != nil {
@@ -150,6 +182,10 @@ var AlphaBillService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "abrpc.AlphaBillService",
 	HandlerType: (*AlphaBillServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetGenesisBlock",
+			Handler:    _AlphaBillService_GetGenesisBlock_Handler,
+		},
 		{
 			MethodName: "ProcessTransaction",
 			Handler:    _AlphaBillService_ProcessTransaction_Handler,
