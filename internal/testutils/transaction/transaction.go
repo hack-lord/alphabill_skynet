@@ -37,6 +37,11 @@ func RandomBillSplit() *transaction.Transaction {
 	return tx
 }
 
+func NewGenericTransaction(t *transaction.Transaction) transaction.GenericTransaction {
+	tx, _ := transaction.New(t)
+	return tx
+}
+
 func randomTx() *transaction.Transaction {
 	return &transaction.Transaction{
 		TransactionAttributes: new(anypb.Any),
