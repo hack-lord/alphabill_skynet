@@ -37,6 +37,13 @@ type (
 		unicityCertificate     UnicityCertificate
 	}
 
+	// GenesisBlock is the first block in a blockchain. Essentially it's immutable configuration of the given chain.
+	GenesisBlock struct {
+		systemIdentifier []byte
+		blockNo          uint64
+		// TODO add required fields
+	}
+
 	// TransactionSystem is a set of rules and logic for defining units and performing transactions with them.
 	TransactionSystem interface {
 		RInit()
