@@ -16,11 +16,12 @@ import (
 type genericTx struct{}
 
 func (g *genericTx) SystemID() []byte                 { return nil }
-func (g *genericTx) UnitId() *uint256.Int             { return nil }
+func (g *genericTx) UnitID() *uint256.Int             { return nil }
 func (g *genericTx) IDHash() string                   { return "" }
 func (g *genericTx) Timeout() uint64                  { return 0 }
 func (g *genericTx) OwnerProof() []byte               { return nil }
 func (g *genericTx) Hash(hashFunc crypto.Hash) []byte { return nil }
+func (g *genericTx) SigBytes() []byte                 { return nil }
 
 func TestProcessNew_Nil(t *testing.T) {
 	s, err := New(nil)
