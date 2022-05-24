@@ -26,6 +26,7 @@ type (
 		hashAlgorithm         gocrypto.Hash
 		signer                crypto.Signer
 		encryptionPubKeyBytes []byte
+		genesisTransactions   []*txsystem.Transaction
 	}
 
 	GenesisOption func(c *genesisConf)
@@ -77,6 +78,12 @@ func WithEncryptionPubKey(encryptionPubKey []byte) GenesisOption {
 	}
 }
 
+func WithGenesisTransactions(txs []*txsystem.Transaction) GenesisOption {
+	return func(c *genesisConf) {
+		c.genesisTransactions = txs
+	}
+}
+
 // NewNodeGenesis creates a new genesis.PartitionNode from the given inputs. This function creates the first
 // p1.P1Request by calling the TransactionSystem.EndBlock function. Must contain PeerID, signer, and system identifier
 // and public encryption key configuration:
@@ -121,7 +128,7 @@ func NewNodeGenesis(txSystem txsystem.TransactionSystem, opts ...GenesisOption) 
 		SystemIdentifier:  c.systemIdentifier,
 		BlockNumber:       1,
 		PreviousBlockHash: zeroHash,
-		Transactions:      nil,
+		Transactions:      c.genesisTransactions,
 	}
 	blockHash := b.Hash(c.hashAlgorithm)
 

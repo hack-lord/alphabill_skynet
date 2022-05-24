@@ -264,7 +264,7 @@ func (c *configuration) genesisBlock() *block.Block {
 	return &block.Block{
 		SystemIdentifier:   c.genesis.SystemDescriptionRecord.SystemIdentifier,
 		BlockNumber:        1,
-		Transactions:       []*txsystem.Transaction{},
+		Transactions:       nil, // TODO add genesis tx similar to money_genesis.go?
 		UnicityCertificate: c.genesis.GetCertificate(),
 	}
 }

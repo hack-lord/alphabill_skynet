@@ -9,11 +9,15 @@ import (
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/errors"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/partition"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/script"
+	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/txsystem"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/txsystem/money"
+	moneytx "gitdc.ee.guardtime.com/alphabill/alphabill/internal/txsystem/money"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/util"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/holiman/uint256"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 const moneyPartitionDir = "money"
@@ -27,6 +31,7 @@ type moneyGenesisConfig struct {
 	Output             string
 	ForceKeyGeneration bool
 	InitialBillValue   uint64 `validate:"gte=0"`
+	InitialBillOwner   string
 	DCMoneySupplyValue uint64 `validate:"gte=0"`
 }
 
@@ -46,6 +51,7 @@ func newMoneyGenesisCmd(ctx context.Context, baseConfig *baseConfiguration) *cob
 	cmd.Flags().StringVarP(&config.KeyFile, keyFileCmd, "k", "", "path to the key file (default: $AB_HOME/money/keys.json). If key file does not exist and flag -f is present then new keys are generated.")
 	cmd.Flags().StringVarP(&config.Output, "output", "o", "", "path to the output genesis file (default: $AB_HOME/money/node-genesis.json)")
 	cmd.Flags().Uint64Var(&config.InitialBillValue, "initial-bill-value", defaultInitialBillValue, "the initial bill value")
+	cmd.Flags().StringVar(&config.InitialBillOwner, "initial-bill-owner", "", "the initial bill owner's public key in HEX. If empty then owner is set to always true predicate.")
 	cmd.Flags().Uint64Var(&config.DCMoneySupplyValue, "dc-money-supply-value", defaultDCMoneySupplyValue, "the initial value for Dust Collector money supply. Total money sum is initial bill + DC money supply.")
 	return cmd
 }
@@ -77,10 +83,19 @@ func abMoneyGenesisRunFun(_ context.Context, config *moneyGenesisConfig) error {
 		return err
 	}
 
+	initialBillOwner, err := config.getInitialBillOwner()
+	if err != nil {
+		return err
+	}
 	ib := &money.InitialBill{
 		ID:    uint256.NewInt(defaultInitialBillId),
 		Value: config.InitialBillValue,
-		Owner: script.PredicateAlwaysTrue(),
+		Owner: initialBillOwner,
+	}
+
+	genesisTxs, err := config.getGenesisTransactions()
+	if err != nil {
+		return err
 	}
 
 	txSystem, err := money.NewMoneyTxSystem(
@@ -95,6 +110,7 @@ func abMoneyGenesisRunFun(_ context.Context, config *moneyGenesisConfig) error {
 		partition.WithSigningKey(keys.SigningPrivateKey),
 		partition.WithEncryptionPubKey(encryptionPublicKeyBytes),
 		partition.WithSystemIdentifier(config.SystemIdentifier),
+		partition.WithGenesisTransactions(genesisTxs),
 	)
 	if err != nil {
 		return err
@@ -114,4 +130,44 @@ func (c *moneyGenesisConfig) getNodeGenesisFileLocation(home string) string {
 		return c.Output
 	}
 	return path.Join(home, vdGenesisFileName)
+}
+
+func (c *moneyGenesisConfig) getInitialBillOwner() ([]byte, error) {
+	if c.InitialBillOwner != "" {
+		ownerPubKey, err := hexutil.Decode(c.InitialBillOwner)
+		if err != nil {
+			return nil, err
+		}
+		// TODO use PredicatePayToPublicKeyHash instead i.e. use partition hash algo
+		return script.PredicatePayToPublicKeyHashDefault(ownerPubKey), nil
+	}
+	return script.PredicateAlwaysTrue(), nil
+}
+
+func (c *moneyGenesisConfig) getGenesisTransactions() ([]*txsystem.Transaction, error) {
+	initialBillId := uint256.NewInt(defaultInitialBillId).Bytes32()
+	initialBillTx, err := c.initialBillTx()
+	if err != nil {
+		return nil, err
+	}
+	return []*txsystem.Transaction{
+		{
+			SystemId:              c.SystemIdentifier,
+			UnitId:                initialBillId[:],
+			TransactionAttributes: initialBillTx,
+			Timeout:               1,
+		},
+	}, nil
+}
+
+func (c *moneyGenesisConfig) initialBillTx() (*anypb.Any, error) {
+	initialBillOwner, err := c.getInitialBillOwner()
+	if err != nil {
+		return nil, err
+	}
+	return anypb.New(&moneytx.TransferOrder{
+		TargetValue: c.InitialBillValue,
+		NewBearer:   initialBillOwner,
+		Backlink:    nil, // TODO what backlink to use?
+	})
 }
