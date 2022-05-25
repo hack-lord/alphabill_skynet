@@ -93,6 +93,9 @@ func runMoneyNode(ctx context.Context, cfg *moneyNodeConfiguration) error {
 	cfg.Node.genesisBlock = genesisBlock
 
 	ownerPredicate, err := genesisBlockConfig.getInitialBillOwnerPredicate()
+	if err != nil {
+		return err
+	}
 	ib := &money.InitialBill{
 		ID:    uint256.NewInt(defaultInitialBillId),
 		Value: cfg.InitialBillValue,
