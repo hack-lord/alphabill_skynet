@@ -35,6 +35,7 @@ type startNodeConfiguration struct {
 	Genesis          string
 	KeyFile          string
 	RootChainAddress string
+	genesisTxs       []*txsystem.Transaction
 }
 
 func defaultNodeRunFunc(ctx context.Context, name string, txs txsystem.TransactionSystem, nodeCfg *startNodeConfiguration, rpcServerConf *grpcServerConfiguration) error {
@@ -173,6 +174,7 @@ func startNode(ctx context.Context, txs txsystem.TransactionSystem, cfg *startNo
 		partition.WithContext(ctx),
 		partition.WithDefaultEventProcessors(true),
 		partition.WithRootAddressAndIdentifier(newMultiAddr, rootID),
+		partition.WithGenesisTxs(cfg.genesisTxs),
 	)
 	if err != nil {
 		return nil, err

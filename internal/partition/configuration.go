@@ -62,6 +62,7 @@ type (
 		signer                      crypto.Signer
 		eventbus                    *eventbus.EventBus
 		genesis                     *genesis.PartitionGenesis
+		genesisTransactions         []*txsystem.Transaction
 		trustBase                   crypto.Verifier
 		initDefaultEventProcessors  bool
 		rootChainAddress            multiaddr.Multiaddr
@@ -129,6 +130,12 @@ func WithRootAddressAndIdentifier(address multiaddr.Multiaddr, id peer.ID) NodeO
 	return func(c *configuration) {
 		c.rootChainAddress = address
 		c.rootChainID = id
+	}
+}
+
+func WithGenesisTxs(txs []*txsystem.Transaction) NodeOption {
+	return func(c *configuration) {
+		c.genesisTransactions = txs
 	}
 }
 
@@ -261,10 +268,13 @@ func (c *configuration) initMissingDefaults(peer *network.Peer) error {
 }
 
 func (c *configuration) genesisBlock() *block.Block {
+	// first block
+	//zeroHash := make([]byte, c.hashAlgorithm.Size())
 	return &block.Block{
-		SystemIdentifier:   c.genesis.SystemDescriptionRecord.SystemIdentifier,
-		BlockNumber:        1,
-		Transactions:       nil, // TODO add genesis tx similar to money_genesis.go?
+		SystemIdentifier: c.genesis.SystemDescriptionRecord.SystemIdentifier,
+		BlockNumber:      1,
+		//PreviousBlockHash: make([]byte, c.hashAlgorithm.Size()), // TODO why it works without previous block hash?
+		Transactions:       c.genesisTransactions,
 		UnicityCertificate: c.genesis.GetCertificate(),
 	}
 }

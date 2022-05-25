@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"crypto"
+	"crypto/sha256"
 	"os"
 	"path"
 
@@ -138,8 +139,11 @@ func (c *moneyGenesisConfig) getInitialBillOwner() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
+		hasher := sha256.New()
+		hasher.Write(ownerPubKey)
+		pubKeyHash := hasher.Sum(nil)
 		// TODO use PredicatePayToPublicKeyHash instead i.e. use partition hash algo
-		return script.PredicatePayToPublicKeyHashDefault(ownerPubKey), nil
+		return script.PredicatePayToPublicKeyHashDefault(pubKeyHash), nil
 	}
 	return script.PredicateAlwaysTrue(), nil
 }
