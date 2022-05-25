@@ -3,22 +3,16 @@ package cmd
 import (
 	"context"
 	"crypto"
-	"crypto/sha256"
 	"os"
 	"path"
 
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/errors"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/partition"
-	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/script"
-	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/txsystem"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/txsystem/money"
-	moneytx "gitdc.ee.guardtime.com/alphabill/alphabill/internal/txsystem/money"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/util"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/holiman/uint256"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/spf13/cobra"
-	"google.golang.org/protobuf/types/known/anypb"
 )
 
 const moneyPartitionDir = "money"
@@ -84,7 +78,19 @@ func abMoneyGenesisRunFun(_ context.Context, config *moneyGenesisConfig) error {
 		return err
 	}
 
-	initialBillOwner, err := config.getInitialBillOwner()
+	hashAlgorithm := crypto.SHA256
+	genesisBlockConfig := &MoneyGenesisBlockConfig{
+		initialBillValue:          config.InitialBillValue,
+		initialBillOwnerPubKeyHex: config.InitialBillOwner,
+		systemIdentifier:          []byte{0, 0, 0, 0},
+		hashAlgo:                  hashAlgorithm,
+	}
+	genesisBlock, err := NewMoneyGenesisBlock(genesisBlockConfig)
+	if err != nil {
+		return err
+	}
+
+	initialBillOwner, err := genesisBlockConfig.getInitialBillOwnerPredicate()
 	if err != nil {
 		return err
 	}
@@ -92,17 +98,6 @@ func abMoneyGenesisRunFun(_ context.Context, config *moneyGenesisConfig) error {
 		ID:    uint256.NewInt(defaultInitialBillId),
 		Value: config.InitialBillValue,
 		Owner: initialBillOwner,
-	}
-
-	hashAlgorithm := crypto.SHA256
-	genesisBlock, err := NewMoneyGenesisBlock(&MoneyGenesisBlockConfig{
-		initialBillValue:          config.InitialBillValue,
-		initialBillOwnerPubKeyHex: config.InitialBillOwner,
-		systemIdentifier:          []byte{0, 0, 0, 0},
-		hashAlgo:                  hashAlgorithm,
-	})
-	if err != nil {
-		return err
 	}
 
 	txSystem, err := money.NewMoneyTxSystem(
@@ -137,47 +132,4 @@ func (c *moneyGenesisConfig) getNodeGenesisFileLocation(home string) string {
 		return c.Output
 	}
 	return path.Join(home, vdGenesisFileName)
-}
-
-func (c *moneyGenesisConfig) getInitialBillOwner() ([]byte, error) {
-	if c.InitialBillOwner != "" {
-		ownerPubKey, err := hexutil.Decode(c.InitialBillOwner)
-		if err != nil {
-			return nil, err
-		}
-		hasher := sha256.New()
-		hasher.Write(ownerPubKey)
-		pubKeyHash := hasher.Sum(nil)
-		// TODO use PredicatePayToPublicKeyHash instead i.e. use partition hash algo
-		return script.PredicatePayToPublicKeyHashDefault(pubKeyHash), nil
-	}
-	return script.PredicateAlwaysTrue(), nil
-}
-
-func (c *moneyGenesisConfig) getGenesisTransactions() ([]*txsystem.Transaction, error) {
-	initialBillId := uint256.NewInt(defaultInitialBillId).Bytes32()
-	initialBillTx, err := c.initialBillTx()
-	if err != nil {
-		return nil, err
-	}
-	return []*txsystem.Transaction{
-		{
-			SystemId:              c.SystemIdentifier,
-			UnitId:                initialBillId[:],
-			TransactionAttributes: initialBillTx,
-			Timeout:               1,
-		},
-	}, nil
-}
-
-func (c *moneyGenesisConfig) initialBillTx() (*anypb.Any, error) {
-	initialBillOwner, err := c.getInitialBillOwner()
-	if err != nil {
-		return nil, err
-	}
-	return anypb.New(&moneytx.TransferOrder{
-		TargetValue: c.InitialBillValue,
-		NewBearer:   initialBillOwner,
-		Backlink:    nil, // TODO what backlink to use?
-	})
 }

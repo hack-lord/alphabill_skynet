@@ -3,18 +3,12 @@ package cmd
 import (
 	"context"
 	"crypto"
-	"crypto/sha256"
-	"fmt"
 
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/errors"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/logger"
-	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/script"
-	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/txsystem"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/txsystem/money"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/holiman/uint256"
 	"github.com/spf13/cobra"
-	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type (
@@ -84,29 +78,26 @@ func runMoneyNode(ctx context.Context, cfg *moneyNodeConfiguration) error {
 		return errors.Wrapf(err, "failed to read genesis file %s", cfg.Node.Genesis)
 	}
 
-	initialBillOwner, err := cfg.getInitialBillOwner()
-	if err != nil {
-		return err
-	}
-	fmt.Println("node owner: " + string(initialBillOwner))
-	ib := &money.InitialBill{
-		ID:    uint256.NewInt(defaultInitialBillId),
-		Value: cfg.InitialBillValue,
-		Owner: initialBillOwner,
-	}
-
 	hashAlgorithm := crypto.SHA256
-	genesisBlock, err := NewMoneyGenesisBlock(&MoneyGenesisBlockConfig{
+	genesisBlockConfig := &MoneyGenesisBlockConfig{
 		initialBillValue:          cfg.InitialBillValue,
 		initialBillOwnerPubKeyHex: cfg.InitialBillOwner,
 		systemIdentifier:          []byte{0, 0, 0, 0},
 		hashAlgo:                  hashAlgorithm,
 		unicityCertificate:        pg.Certificate,
-	})
+	}
+	genesisBlock, err := NewMoneyGenesisBlock(genesisBlockConfig)
 	if err != nil {
 		return err
 	}
 	cfg.Node.genesisBlock = genesisBlock
+
+	ownerPredicate, err := genesisBlockConfig.getInitialBillOwnerPredicate()
+	ib := &money.InitialBill{
+		ID:    uint256.NewInt(defaultInitialBillId),
+		Value: cfg.InitialBillValue,
+		Owner: ownerPredicate,
+	}
 
 	txs, err := money.NewMoneyTxSystem(
 		hashAlgorithm,
@@ -118,47 +109,4 @@ func runMoneyNode(ctx context.Context, cfg *moneyNodeConfiguration) error {
 		return errors.Wrapf(err, "failed to start money transaction system")
 	}
 	return defaultNodeRunFunc(ctx, "money node", txs, cfg.Node, cfg.RPCServer)
-}
-
-func (cfg *moneyNodeConfiguration) getInitialBillOwner() ([]byte, error) {
-	if cfg.InitialBillOwner != "" {
-		ownerPubKey, err := hexutil.Decode(cfg.InitialBillOwner)
-		if err != nil {
-			return nil, err
-		}
-		hasher := sha256.New()
-		hasher.Write(ownerPubKey)
-		pubKeyHash := hasher.Sum(nil)
-		// TODO use PredicatePayToPublicKeyHash instead i.e. use partition hash algo
-		return script.PredicatePayToPublicKeyHashDefault(pubKeyHash), nil
-	}
-	return script.PredicateAlwaysTrue(), nil
-}
-
-func (cfg *moneyNodeConfiguration) getGenesisTransactions() ([]*txsystem.Transaction, error) {
-	initialBillId := uint256.NewInt(defaultInitialBillId).Bytes32()
-	initialBillTx, err := cfg.initialBillTx()
-	if err != nil {
-		return nil, err
-	}
-	return []*txsystem.Transaction{
-		{
-			SystemId:              []byte{0, 0, 0, 0},
-			UnitId:                initialBillId[:],
-			TransactionAttributes: initialBillTx,
-			Timeout:               1,
-		},
-	}, nil
-}
-
-func (cfg *moneyNodeConfiguration) initialBillTx() (*anypb.Any, error) {
-	initialBillOwner, err := cfg.getInitialBillOwner()
-	if err != nil {
-		return nil, err
-	}
-	return anypb.New(&money.TransferOrder{
-		TargetValue: cfg.InitialBillValue,
-		NewBearer:   initialBillOwner,
-		Backlink:    nil, // TODO what backlink to use?
-	})
 }
