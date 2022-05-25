@@ -94,13 +94,19 @@ func abMoneyGenesisRunFun(_ context.Context, config *moneyGenesisConfig) error {
 		Owner: initialBillOwner,
 	}
 
-	genesisTxs, err := config.getGenesisTransactions()
+	hashAlgorithm := crypto.SHA256
+	genesisBlock, err := NewMoneyGenesisBlock(&MoneyGenesisBlockConfig{
+		initialBillValue:          config.InitialBillValue,
+		initialBillOwnerPubKeyHex: config.InitialBillOwner,
+		systemIdentifier:          []byte{0, 0, 0, 0},
+		hashAlgo:                  hashAlgorithm,
+	})
 	if err != nil {
 		return err
 	}
 
 	txSystem, err := money.NewMoneyTxSystem(
-		crypto.SHA256,
+		hashAlgorithm,
 		ib,
 		config.DCMoneySupplyValue,
 		money.SchemeOpts.SystemIdentifier(config.SystemIdentifier),
@@ -111,7 +117,7 @@ func abMoneyGenesisRunFun(_ context.Context, config *moneyGenesisConfig) error {
 		partition.WithSigningKey(keys.SigningPrivateKey),
 		partition.WithEncryptionPubKey(encryptionPublicKeyBytes),
 		partition.WithSystemIdentifier(config.SystemIdentifier),
-		partition.WithGenesisTransactions(genesisTxs),
+		partition.WithGenesisBlock(genesisBlock),
 	)
 	if err != nil {
 		return err

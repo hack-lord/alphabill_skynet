@@ -26,7 +26,7 @@ type (
 		hashAlgorithm         gocrypto.Hash
 		signer                crypto.Signer
 		encryptionPubKeyBytes []byte
-		genesisTransactions   []*txsystem.Transaction
+		genesisBlock          *block.Block
 	}
 
 	GenesisOption func(c *genesisConf)
@@ -46,6 +46,19 @@ func (c genesisConf) isValid() error {
 		return ErrInvalidSystemIdentifier
 	}
 	return nil
+}
+
+func (c genesisConf) getGenesisBlock() *block.Block {
+	if c.genesisBlock != nil {
+		return c.genesisBlock
+	}
+	// default genesis block
+	return &block.Block{
+		SystemIdentifier:  c.systemIdentifier,
+		BlockNumber:       1,
+		PreviousBlockHash: make([]byte, c.hashAlgorithm.Size()),
+		Transactions:      nil,
+	}
 }
 
 func WithPeerID(peerID peer.ID) GenesisOption {
@@ -78,9 +91,9 @@ func WithEncryptionPubKey(encryptionPubKey []byte) GenesisOption {
 	}
 }
 
-func WithGenesisTransactions(txs []*txsystem.Transaction) GenesisOption {
+func WithGenesisBlock(b *block.Block) GenesisOption {
 	return func(c *genesisConf) {
-		c.genesisTransactions = txs
+		c.genesisBlock = b
 	}
 }
 
@@ -123,14 +136,7 @@ func NewNodeGenesis(txSystem txsystem.TransactionSystem, opts ...GenesisOption) 
 
 	zeroHash := make([]byte, c.hashAlgorithm.Size())
 
-	// first block
-	b := &block.Block{
-		SystemIdentifier:  c.systemIdentifier,
-		BlockNumber:       1,
-		PreviousBlockHash: zeroHash,
-		Transactions:      c.genesisTransactions,
-	}
-	blockHash := b.Hash(c.hashAlgorithm)
+	blockHash := c.getGenesisBlock().Hash(c.hashAlgorithm)
 
 	// P1 request
 	id := c.peerID.String()

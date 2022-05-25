@@ -95,14 +95,21 @@ func runMoneyNode(ctx context.Context, cfg *moneyNodeConfiguration) error {
 		Owner: initialBillOwner,
 	}
 
-	genesisTxs, err := cfg.getGenesisTransactions()
+	hashAlgorithm := crypto.SHA256
+	genesisBlock, err := NewMoneyGenesisBlock(&MoneyGenesisBlockConfig{
+		initialBillValue:          cfg.InitialBillValue,
+		initialBillOwnerPubKeyHex: cfg.InitialBillOwner,
+		systemIdentifier:          []byte{0, 0, 0, 0},
+		hashAlgo:                  hashAlgorithm,
+		unicityCertificate:        pg.Certificate,
+	})
 	if err != nil {
 		return err
 	}
-	cfg.Node.genesisTxs = genesisTxs
+	cfg.Node.genesisBlock = genesisBlock
 
 	txs, err := money.NewMoneyTxSystem(
-		crypto.SHA256,
+		hashAlgorithm,
 		ib,
 		cfg.DCMoneySupplyValue,
 		money.SchemeOpts.SystemIdentifier(pg.GetSystemDescriptionRecord().GetSystemIdentifier()),

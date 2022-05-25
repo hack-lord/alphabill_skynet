@@ -8,6 +8,7 @@ import (
 
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/async"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/async/future"
+	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/block"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/errors"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/network"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/partition"
@@ -35,7 +36,7 @@ type startNodeConfiguration struct {
 	Genesis          string
 	KeyFile          string
 	RootChainAddress string
-	genesisTxs       []*txsystem.Transaction
+	genesisBlock     *block.Block
 }
 
 func defaultNodeRunFunc(ctx context.Context, name string, txs txsystem.TransactionSystem, nodeCfg *startNodeConfiguration, rpcServerConf *grpcServerConfiguration) error {
@@ -174,7 +175,7 @@ func startNode(ctx context.Context, txs txsystem.TransactionSystem, cfg *startNo
 		partition.WithContext(ctx),
 		partition.WithDefaultEventProcessors(true),
 		partition.WithRootAddressAndIdentifier(newMultiAddr, rootID),
-		partition.WithGenesisTxs(cfg.genesisTxs),
+		partition.WithGenesisBlockNodeOption(cfg.genesisBlock),
 	)
 	if err != nil {
 		return nil, err

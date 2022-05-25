@@ -131,7 +131,7 @@ func New(
 	n.timers.Start(t1TimerName, conf.t1Timeout)
 
 	// get genesis block from the genesis
-	genesisBlock := conf.genesisBlock()
+	genesisBlock := conf.getGenesisBlock()
 	if err := n.blockStore.Add(genesisBlock); err != nil {
 		return nil, err
 	}

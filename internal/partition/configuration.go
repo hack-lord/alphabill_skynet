@@ -62,7 +62,7 @@ type (
 		signer                      crypto.Signer
 		eventbus                    *eventbus.EventBus
 		genesis                     *genesis.PartitionGenesis
-		genesisTransactions         []*txsystem.Transaction
+		genesisBlock                *block.Block
 		trustBase                   crypto.Verifier
 		initDefaultEventProcessors  bool
 		rootChainAddress            multiaddr.Multiaddr
@@ -133,9 +133,9 @@ func WithRootAddressAndIdentifier(address multiaddr.Multiaddr, id peer.ID) NodeO
 	}
 }
 
-func WithGenesisTxs(txs []*txsystem.Transaction) NodeOption {
+func WithGenesisBlockNodeOption(b *block.Block) NodeOption {
 	return func(c *configuration) {
-		c.genesisTransactions = txs
+		c.genesisBlock = b
 	}
 }
 
@@ -267,14 +267,15 @@ func (c *configuration) initMissingDefaults(peer *network.Peer) error {
 	return nil
 }
 
-func (c *configuration) genesisBlock() *block.Block {
-	// first block
-	//zeroHash := make([]byte, c.hashAlgorithm.Size())
+func (c *configuration) getGenesisBlock() *block.Block {
+	if c.genesisBlock != nil {
+		return c.genesisBlock
+	}
+	// default genesis block
 	return &block.Block{
-		SystemIdentifier: c.genesis.SystemDescriptionRecord.SystemIdentifier,
-		BlockNumber:      1,
-		//PreviousBlockHash: make([]byte, c.hashAlgorithm.Size()), // TODO why it works without previous block hash?
-		Transactions:       c.genesisTransactions,
+		SystemIdentifier:   c.genesis.SystemDescriptionRecord.SystemIdentifier,
+		BlockNumber:        1,
+		PreviousBlockHash:  make([]byte, c.hashAlgorithm.Size()),
 		UnicityCertificate: c.genesis.GetCertificate(),
 	}
 }

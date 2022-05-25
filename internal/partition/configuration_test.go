@@ -244,13 +244,13 @@ func TestGetPublicKey_NotFound(t *testing.T) {
 	require.ErrorContains(t, err, "public key with node id 1 not found")
 }
 
-func TestGetGenesisBlock(t *testing.T) {
+func TestDefaultGenesisBlockExists(t *testing.T) {
 	p := testnetwork.CreatePeer(t)
 	signer, verifier := testsig.CreateSignerAndVerifier(t)
 	pg := createPartitionGenesis(t, signer, verifier, nil, p)
 	conf, err := loadAndValidateConfiguration(p, signer, pg, &testtxsystem.CounterTxSystem{})
 	require.NoError(t, err)
-	require.NotNil(t, conf.genesisBlock())
+	require.NotNil(t, conf.getGenesisBlock())
 }
 
 type mockLeaderSelector struct {
