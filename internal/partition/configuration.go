@@ -62,6 +62,7 @@ type (
 		signer                      crypto.Signer
 		eventbus                    *eventbus.EventBus
 		genesis                     *genesis.PartitionGenesis
+		genesisBlock                *block.Block
 		trustBase                   crypto.Verifier
 		initDefaultEventProcessors  bool
 		rootChainAddress            multiaddr.Multiaddr
@@ -129,6 +130,12 @@ func WithRootAddressAndIdentifier(address multiaddr.Multiaddr, id peer.ID) NodeO
 	return func(c *configuration) {
 		c.rootChainAddress = address
 		c.rootChainID = id
+	}
+}
+
+func WithGenesisBlockNodeOption(b *block.Block) NodeOption {
+	return func(c *configuration) {
+		c.genesisBlock = b
 	}
 }
 
@@ -260,11 +267,15 @@ func (c *configuration) initMissingDefaults(peer *network.Peer) error {
 	return nil
 }
 
-func (c *configuration) genesisBlock() *block.Block {
+func (c *configuration) getGenesisBlock() *block.Block {
+	if c.genesisBlock != nil {
+		return c.genesisBlock
+	}
+	// default genesis block
 	return &block.Block{
 		SystemIdentifier:   c.genesis.SystemDescriptionRecord.SystemIdentifier,
 		BlockNumber:        1,
-		Transactions:       []*txsystem.Transaction{},
+		PreviousBlockHash:  make([]byte, c.hashAlgorithm.Size()),
 		UnicityCertificate: c.genesis.GetCertificate(),
 	}
 }

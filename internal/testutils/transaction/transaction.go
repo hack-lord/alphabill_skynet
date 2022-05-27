@@ -4,13 +4,11 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
-	moneytx "gitdc.ee.guardtime.com/alphabill/alphabill/internal/txsystem/money"
-
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/hash"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/script"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/txsystem"
+	moneytx "gitdc.ee.guardtime.com/alphabill/alphabill/internal/txsystem/money"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 

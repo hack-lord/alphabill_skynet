@@ -9,17 +9,16 @@ import (
 	"testing"
 	"time"
 
+	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/async"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/protocol/genesis"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/rootchain"
-	testsig "gitdc.ee.guardtime.com/alphabill/alphabill/internal/testutils/sig"
-	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/util"
-
-	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/async"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/rpc/alphabill"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/script"
+	testsig "gitdc.ee.guardtime.com/alphabill/alphabill/internal/testutils/sig"
 	test "gitdc.ee.guardtime.com/alphabill/alphabill/internal/testutils/time"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/txsystem"
 	billtx "gitdc.ee.guardtime.com/alphabill/alphabill/internal/txsystem/money"
+	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/util"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -101,7 +100,16 @@ func TestMoneyNodeConfig_EnvAndFlags(t *testing.T) {
 				sc.InitialBillValue = 555
 				return sc
 			}(),
-		}, {
+		},
+		{
+			args: "money --initial-bill-owner=0x0212911c7341399e876800a268855c894c43eb849a72ac5a9d26a0091041c107f0",
+			expectedConfig: func() *moneyNodeConfiguration {
+				sc := defaultMoneyNodeConfiguration()
+				sc.InitialBillOwner = "0x0212911c7341399e876800a268855c894c43eb849a72ac5a9d26a0091041c107f0"
+				return sc
+			}(),
+		},
+		{
 			args: "money --server-address=srv:1234 --server-max-recv-msg-size=66 --server-max-connection-age-ms=77 --server-max-connection-age-grace-ms=88",
 			expectedConfig: func() *moneyNodeConfiguration {
 				sc := defaultMoneyNodeConfiguration()
@@ -200,6 +208,7 @@ func TestMoneyNodeConfig_EnvAndFlags(t *testing.T) {
 func TestMoneyNodeConfig_ConfigFile(t *testing.T) {
 	configFileContents := `
 initial-bill-value=666
+initial-bill-owner=0x0212911c7341399e876800a268855c894c43eb849a72ac5a9d26a0091041c107f0
 server-address=srv:1234
 server-max-recv-msg-size=9999
 logger-config=custom-log-conf.yaml
@@ -222,6 +231,7 @@ logger-config=custom-log-conf.yaml
 	expectedConfig.Base.CfgFile = f.Name()
 	expectedConfig.Base.LogCfgFile = "custom-log-conf.yaml"
 	expectedConfig.InitialBillValue = 666
+	expectedConfig.InitialBillOwner = "0x0212911c7341399e876800a268855c894c43eb849a72ac5a9d26a0091041c107f0"
 	expectedConfig.RPCServer.Address = "srv:1234"
 	expectedConfig.RPCServer.MaxRecvMsgSize = 9999
 

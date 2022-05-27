@@ -5,12 +5,9 @@ import (
 	"crypto"
 
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/errors"
-
-	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/script"
+	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/logger"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/txsystem/money"
 	"github.com/holiman/uint256"
-
-	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/logger"
 	"github.com/spf13/cobra"
 )
 
@@ -19,8 +16,10 @@ type (
 		baseNodeConfiguration
 		Node      *startNodeConfiguration
 		RPCServer *grpcServerConfiguration
-		// The value of initial bill in AlphaBills.
+		// The value of initial bill in Alphabills.
 		InitialBillValue uint64 `validate:"gte=0"`
+		// The initial bill owner's public key in HEX
+		InitialBillOwner string
 		// The initial value of Dust Collector Money supply.
 		DCMoneySupplyValue uint64 `validate:"gte=0"`
 	}
@@ -61,6 +60,7 @@ func newMoneyNodeCmd(ctx context.Context, baseConfig *baseConfiguration, nodeRun
 	}
 
 	nodeCmd.Flags().Uint64Var(&config.InitialBillValue, "initial-bill-value", defaultInitialBillValue, "the initial bill value for new node.")
+	nodeCmd.Flags().StringVar(&config.InitialBillOwner, "initial-bill-owner", "", "the initial bill owner's public key in HEX. If empty then owner is set to always true predicate.")
 	nodeCmd.Flags().Uint64Var(&config.DCMoneySupplyValue, "dc-money-supply-value", defaultDCMoneySupplyValue, "the initial value for Dust Collector money supply. Total money sum is initial bill + DC money supply.")
 	nodeCmd.Flags().StringVarP(&config.Node.Address, "address", "a", "/ip4/127.0.0.1/tcp/26652", "node address in libp2p multiaddress-format")
 	nodeCmd.Flags().StringVarP(&config.Node.RootChainAddress, "rootchain", "r", "/ip4/127.0.0.1/tcp/26662", "root chain address in libp2p multiaddress-format")
@@ -78,14 +78,32 @@ func runMoneyNode(ctx context.Context, cfg *moneyNodeConfiguration) error {
 		return errors.Wrapf(err, "failed to read genesis file %s", cfg.Node.Genesis)
 	}
 
+	hashAlgorithm := crypto.SHA256
+	genesisBlockConfig := &MoneyGenesisBlockConfig{
+		initialBillValue:          cfg.InitialBillValue,
+		initialBillOwnerPubKeyHex: cfg.InitialBillOwner,
+		systemIdentifier:          []byte{0, 0, 0, 0},
+		hashAlgo:                  hashAlgorithm,
+		unicityCertificate:        pg.Certificate,
+	}
+	genesisBlock, err := NewMoneyGenesisBlock(genesisBlockConfig)
+	if err != nil {
+		return err
+	}
+	cfg.Node.genesisBlock = genesisBlock
+
+	ownerPredicate, err := genesisBlockConfig.getInitialBillOwnerPredicate()
+	if err != nil {
+		return err
+	}
 	ib := &money.InitialBill{
 		ID:    uint256.NewInt(defaultInitialBillId),
 		Value: cfg.InitialBillValue,
-		Owner: script.PredicateAlwaysTrue(),
+		Owner: ownerPredicate,
 	}
 
 	txs, err := money.NewMoneyTxSystem(
-		crypto.SHA256,
+		hashAlgorithm,
 		ib,
 		cfg.DCMoneySupplyValue,
 		money.SchemeOpts.SystemIdentifier(pg.GetSystemDescriptionRecord().GetSystemIdentifier()),

@@ -8,7 +8,6 @@ import (
 
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/errors"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/partition"
-	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/script"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/txsystem/money"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/util"
 	"github.com/holiman/uint256"
@@ -26,6 +25,7 @@ type moneyGenesisConfig struct {
 	Keys               *keysConfig
 	Output             string
 	InitialBillValue   uint64 `validate:"gte=0"`
+	InitialBillOwner   string
 	DCMoneySupplyValue uint64 `validate:"gte=0"`
 }
 
@@ -44,6 +44,7 @@ func newMoneyGenesisCmd(ctx context.Context, baseConfig *baseConfiguration) *cob
 	config.Keys.addCmdFlags(cmd)
 	cmd.Flags().StringVarP(&config.Output, "output", "o", "", "path to the output genesis file (default: $AB_HOME/money/node-genesis.json)")
 	cmd.Flags().Uint64Var(&config.InitialBillValue, "initial-bill-value", defaultInitialBillValue, "the initial bill value")
+	cmd.Flags().StringVar(&config.InitialBillOwner, "initial-bill-owner", "", "the initial bill owner's public key in HEX. If empty then owner is set to always true predicate.")
 	cmd.Flags().Uint64Var(&config.DCMoneySupplyValue, "dc-money-supply-value", defaultDCMoneySupplyValue, "the initial value for Dust Collector money supply. Total money sum is initial bill + DC money supply.")
 	return cmd
 }
@@ -75,14 +76,30 @@ func abMoneyGenesisRunFun(_ context.Context, config *moneyGenesisConfig) error {
 		return err
 	}
 
+	hashAlgorithm := crypto.SHA256
+	genesisBlockConfig := &MoneyGenesisBlockConfig{
+		initialBillValue:          config.InitialBillValue,
+		initialBillOwnerPubKeyHex: config.InitialBillOwner,
+		systemIdentifier:          []byte{0, 0, 0, 0},
+		hashAlgo:                  hashAlgorithm,
+	}
+	genesisBlock, err := NewMoneyGenesisBlock(genesisBlockConfig)
+	if err != nil {
+		return err
+	}
+
+	initialBillOwner, err := genesisBlockConfig.getInitialBillOwnerPredicate()
+	if err != nil {
+		return err
+	}
 	ib := &money.InitialBill{
 		ID:    uint256.NewInt(defaultInitialBillId),
 		Value: config.InitialBillValue,
-		Owner: script.PredicateAlwaysTrue(),
+		Owner: initialBillOwner,
 	}
 
 	txSystem, err := money.NewMoneyTxSystem(
-		crypto.SHA256,
+		hashAlgorithm,
 		ib,
 		config.DCMoneySupplyValue,
 		money.SchemeOpts.SystemIdentifier(config.SystemIdentifier),
@@ -93,6 +110,7 @@ func abMoneyGenesisRunFun(_ context.Context, config *moneyGenesisConfig) error {
 		partition.WithSigningKey(keys.SigningPrivateKey),
 		partition.WithEncryptionPubKey(encryptionPublicKeyBytes),
 		partition.WithSystemIdentifier(config.SystemIdentifier),
+		partition.WithGenesisBlock(genesisBlock),
 	)
 	if err != nil {
 		return err
