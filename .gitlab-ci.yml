@@ -18,7 +18,7 @@ stages:
   - deploy-consul
   - deploy
 
-image: $CI_REGISTRY_IMAGE/ab-gitlab-runner:20220425
+image: $CI_REGISTRY_IMAGE/ab-gitlab-runner:20220609
 
 # Debugging info and initialization goes here
 init:
