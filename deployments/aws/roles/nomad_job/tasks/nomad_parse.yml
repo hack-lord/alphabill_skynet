@@ -1,0 +1,24 @@
+---
+- include_tasks: levant/render.yml
+  when: nomad_job_levant_folder is defined
+
+- block:
+    - name: Parse job
+      uri:
+        url: "{{ nomad_job_api }}/jobs/parse"
+        validate_certs: no
+        headers:
+          X-Nomad-Token: "{{ lookup('env', 'NOMAD_TOKEN') | default(nomad_token, True) }}"
+        method: POST
+        body: "{{ body_content | to_json }}"
+        body_format: json
+      vars:
+        body_content:
+          JobHCL: "{{ lookup('file', nomad_job_folder + '/' + item + '.hcl') }}"
+          Canonicalize: true
+      register: job_json
+
+    - name: Set job ID
+      set_fact:
+        job_id: "{{ job_json.json.ID }}"
+  check_mode: no

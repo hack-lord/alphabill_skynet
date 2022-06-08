@@ -1,0 +1,33 @@
+---
+- include_tasks: nomad_parse.yml
+
+- name: Get job allocations
+  uri:
+    url: "{{ nomad_job_api }}/job/{{ job_id }}/allocations"
+    validate_certs: no
+    headers:
+      X-Nomad-Token: "{{ lookup('env', 'NOMAD_TOKEN') | default(nomad_token, True) }}"
+    method: GET
+  register: __allocations
+  check_mode: no
+
+- name: Get running allocations
+  set_fact:
+    running_allocations: "{{ __allocations.json | json_query(query) }}"
+  vars:
+    query: "[?ClientStatus=='running'].ID"
+
+- name: Show running allocations
+  debug:
+    var: running_allocations
+
+- name: Restart allocations
+  uri:
+    url: "{{ nomad_job_api }}/client/allocation/{{ allocation }}/restart"
+    validate_certs: no
+    headers:
+      X-Nomad-Token: "{{ lookup('env', 'NOMAD_TOKEN') | default(nomad_token, True) }}"
+    method: GET
+  loop: "{{ running_allocations }}"
+  loop_control:
+    loop_var: allocation
