@@ -20,6 +20,21 @@ stages:
 
 image: $CI_REGISTRY_IMAGE/ab-gitlab-runner:20220609
 
+# Rules about when to start a pipeline and when not
+workflow:
+  rules:
+    # Do not run on Merge Request updates/creation
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    # Run pipeline from web when all variables are not set.
+    - if: '$ACTION == "" && $TARGET_ENVIRONMENT == "" && $REGENERATE_GENESIS == "" && $CI_PIPELINE_SOURCE == "web"'
+      when: always
+    # Do not run deployment pipeline if one of mandatory variables are missing
+    - if: '($ACTION == "" || $TARGET_ENVIRONMENT == "" || $REGENERATE_GENESIS == "") && $CI_PIPELINE_SOURCE == "web"'
+      when: never
+    # Run in every other case (push to branch, scheduled, triggered over REST API, etc...)
+    - when: always
+
 # Debugging info and initialization goes here
 init:
   stage: init
