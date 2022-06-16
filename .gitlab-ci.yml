@@ -1,10 +1,39 @@
+variables:
+  ACTION:
+    value: ""
+    description: "Possible actions: 'restart'."
+  TARGET_ENVIRONMENT:
+    value: ""
+    description: "The deployment target: 'dev'."
+  REGENERATE_GENESIS:
+    value: "false"
+    description: "Whether to regenerate genesis files. Set to 'true' to enable."
+
 stages:
   - init
   - test
   - build
   - analyze
+  - publish
+  - deploy-consul
+  - deploy
 
-image: $CI_REGISTRY_IMAGE/ab-gitlab-runner:20220425
+image: $CI_REGISTRY_IMAGE/ab-gitlab-runner:20220609
+
+# Rules about when to start a pipeline and when not
+workflow:
+  rules:
+    # Do not run on Merge Request updates/creation
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    # Run pipeline from web when all variables are not set.
+    - if: '$ACTION == "" && $TARGET_ENVIRONMENT == "" && $REGENERATE_GENESIS == "" && $CI_PIPELINE_SOURCE == "web"'
+      when: always
+    # Do not run deployment pipeline if one of mandatory variables are missing
+    - if: '($ACTION == "" || $TARGET_ENVIRONMENT == "" || $REGENERATE_GENESIS == "") && $CI_PIPELINE_SOURCE == "web"'
+      when: never
+    # Run in every other case (push to branch, scheduled, triggered over REST API, etc...)
+    - when: always
 
 # Debugging info and initialization goes here
 init:
@@ -28,6 +57,9 @@ build:
   stage: build
   script:
     - make build
+  artifacts:
+    paths:
+      - build
 
 gosec:
   stage: test
@@ -87,3 +119,66 @@ nancy:
   stage: analyze
   script:
     - go list -json -m all | nancy sleuth
+
+.environment-dev:
+  variables:
+    ENVIRONMENT: dev
+    ENVIRONMENT_URL: https://nomad-dev-1.abdev1.guardtime.com/
+    ALPHABILL_VERSION: ${CI_COMMIT_SHA}
+
+publish-alphabill-dev:
+  extends: .environment-dev
+  stage: publish
+  environment:
+    name: $ENVIRONMENT
+    url: $ENVIRONMENT_URL
+    action: prepare
+  script:
+    - ansible-playbook deployments/aws/site-publish-binaries.yml -e gt_environment=${ENVIRONMENT} -e alphabill_version=${ALPHABILL_VERSION}
+  rules:
+    - if: $CI_COMMIT_REF_PROTECTED == "true"
+
+deploy-alphabill-consul-dev:
+  extends: .environment-dev
+  stage: deploy-consul
+  environment:
+    name: $ENVIRONMENT
+    url: $ENVIRONMENT_URL
+    action: prepare
+  script:
+    - ansible-playbook deployments/aws/site-deploy-consul.yml -e gt_environment=${ENVIRONMENT}
+  rules:
+    - if: $CI_COMMIT_REF_PROTECTED == "true" && $REGENERATE_GENESIS == "true" && $TARGET_ENVIRONMENT == $ENVIRONMENT
+
+stop-alphabill-dev:
+  extends: .environment-dev
+  stage: deploy
+  environment:
+    name: $ENVIRONMENT
+    url: $ENVIRONMENT_URL
+    action: stop
+  script:
+    - ansible-playbook deployments/aws/site-manage-nomad-jobs.yml -e gt_environment=${ENVIRONMENT} -e nomad_task=stop
+  rules:
+    - if: $CI_COMMIT_REF_PROTECTED == "true"
+  when: manual
+
+deploy-alphabill-dev:
+  extends: .environment-dev
+  stage: deploy
+  environment:
+    name: $ENVIRONMENT
+    url: $ENVIRONMENT_URL
+    action: start
+    on_stop: stop-alphabill-dev
+  script:
+    # For the time being, always stop before restart to avoid out-of-sync errors.
+    - ansible-playbook deployments/aws/site-manage-nomad-jobs.yml -e gt_environment=${ENVIRONMENT} -e nomad_task=stop
+    - ansible-playbook deployments/aws/site-manage-nomad-jobs.yml -e gt_environment=${ENVIRONMENT} -e alphabill_version=${ALPHABILL_VERSION}
+  rules:
+    - if: $CI_COMMIT_REF_PROTECTED != "true"
+      when: never
+    - if: $ACTION =~ /restart/ && $TARGET_ENVIRONMENT == $ENVIRONMENT
+    - if: $CI_PIPELINE_SOURCE == "push"
+      when: manual
+      allow_failure: true

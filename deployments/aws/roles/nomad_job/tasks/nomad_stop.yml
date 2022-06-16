@@ -1,0 +1,11 @@
+---
+- include_tasks: nomad_parse.yml
+
+- name: Stop Nomad jobs
+  uri:
+    url: "{{ nomad_job_api }}/job/{{ job_id }}"
+    validate_certs: no
+    method: DELETE
+    headers:
+      X-Nomad-Token: "{{ lookup('env', 'NOMAD_TOKEN') | default(nomad_token, True) }}"
+  changed_when: True

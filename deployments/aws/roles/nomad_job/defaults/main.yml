@@ -1,0 +1,11 @@
+---
+# Nomad API URL
+nomad_job_api: "https://{{ ansible_host }}:4646/v1"
+# Nomad management token
+nomad_token: ""
+
+# Optional: Use Levant to render templates before deploying
+#nomad_job_levant_folder:
+
+# Supported tasks: deploy, stop, restart
+nomad_task: deploy
