@@ -88,6 +88,16 @@ func (v *VDClient) RegisterHash(hash string) error {
 	return v.registerHashTx(b)
 }
 
+// FetchBlockWithHash is a temporary workaround for verifying registered hash values.
+func (v *VDClient) FetchBlockWithHash(hash string, blockNumber uint64) error {
+	b, err := hexStringToBytes(hash)
+	if err != nil {
+		return err
+	}
+
+	return v.sync(blockNumber-1, blockNumber, b)
+}
+
 // ListAllBlocksWithTx prints all non-empty blocks from genesis up to the latest block
 func (v *VDClient) ListAllBlocksWithTx() error {
 	defer v.shutdown()
@@ -161,7 +171,9 @@ func (v *VDClient) prepareProcessor(timeout uint64, hash []byte) VDBlockProcesso
 			return nil
 		}
 		for _, tx := range b.GetTransactions() {
+			log.Debug("Processing block #%d", b.GetBlockNumber())
 			if hash != nil {
+				log.Debug("Comparing ", hex.EncodeToString(hash), " with ", hex.EncodeToString(tx.GetUnitId()))
 				// if hash is provided, print only the corresponding block
 				if bytes.Equal(hash, tx.GetUnitId()) {
 					log.Info(fmt.Sprintf("Tx in block #%d, hash: %s", b.GetBlockNumber(), hex.EncodeToString(hash)))
