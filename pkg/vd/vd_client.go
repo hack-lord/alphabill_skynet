@@ -89,13 +89,8 @@ func (v *VDClient) RegisterHash(hash string) error {
 }
 
 // FetchBlockWithHash is a temporary workaround for verifying registered hash values.
-func (v *VDClient) FetchBlockWithHash(hash string, blockNumber uint64) error {
-	b, err := hexStringToBytes(hash)
-	if err != nil {
-		return err
-	}
-
-	return v.sync(blockNumber-1, blockNumber, b)
+func (v *VDClient) FetchBlockWithHash(hash []byte, blockNumber uint64) error {
+	return v.sync(blockNumber-1, blockNumber, hash)
 }
 
 // ListAllBlocksWithTx prints all non-empty blocks from genesis up to the latest block

@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -88,11 +89,12 @@ func (c *AlphabillClient) GetBlock(blockNumber uint64) (*block.Block, error) {
 }
 
 func (c *AlphabillClient) GetBlocks(blockNumber uint64, blockCount uint64) (res *alphabill.GetBlocksResponse, err error) {
+	log.Debug("fetching blocks blocknumber=", blockNumber, " blockcount=", blockCount)
 	defer func(t1 time.Time) {
 		if res != nil && len(res.Blocks) > 0 {
 			trackExecutionTime(t1, fmt.Sprintf("downloading blocks %d-%d", blockNumber, blockNumber+uint64(len(res.Blocks))-1))
 		} else {
-			trackExecutionTime(t1, fmt.Sprintf("downloading blocks %d+%d (empty response)", blockNumber, blockCount))
+			trackExecutionTime(t1, "downloading blocks empty response")
 		}
 	}(time.Now())
 
@@ -177,7 +179,10 @@ func (c *AlphabillClient) connect() error {
 		return nil
 	}
 
-	conn, err := grpc.Dial(c.config.Uri, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(
+		c.config.Uri,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(1024*1024*4), grpc.MaxCallRecvMsgSize(math.MaxInt32)))
 	if err != nil {
 		return err
 	}
