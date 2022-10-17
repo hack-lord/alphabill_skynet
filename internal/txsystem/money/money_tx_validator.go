@@ -66,18 +66,19 @@ func validateSplit(data rma.UnitData, tx Split) error {
 }
 
 func validateSwap(tx Swap, hashAlgorithm crypto.Hash) error {
-	// 1. target value of the bill is the sum of the target values of succeeded payments in P
+	// 1. TODO verify type is "bill"
+	// 2. target value of the new bill is the sum of the target values of the payments in P that succeeded
 	expectedSum := tx.TargetValue()
 	actualSum := sumDcTransferValues(tx)
 	if expectedSum != actualSum {
 		return ErrSwapInvalidTargetValue
 	}
 
-	// 2. there is suffiecient DC-money supply
-	// 3. there exists no bill with identifier
+	// 3. there is suffiecient DC-money supply
+	// 4. there exists no bill with identifier
 	// checked in moneyTxSystem#validateSwap method
 
-	// 4. all bill ids in dust transfer orders are elements of bill ids in swap tx
+	// 5. all bill ids in dust transfer orders are elements of bill ids in swap tx
 	for _, dcTx := range tx.DCTransfers() {
 		exists := billIdInList(dcTx.UnitID(), tx.BillIdentifiers())
 		if !exists {
@@ -85,20 +86,20 @@ func validateSwap(tx Swap, hashAlgorithm crypto.Hash) error {
 		}
 	}
 
-	// 5. new bill id is properly computed ι=h(ι1,...,ιm)
+	// 6. new bill id is properly computed ι=h(ι1,...,ιm)
 	expectedBillId := hashBillIds(tx, hashAlgorithm)
 	unitIdBytes := tx.UnitID().Bytes32()
 	if !bytes.Equal(unitIdBytes[:], expectedBillId) {
 		return ErrSwapInvalidBillId
 	}
 
-	// 6. bills were transfered to DC (validate dc transfer type)
+	// 7. bills were transfered to DC (validate dc transfer type)
 	// already checked on language/protobuf level
 
-	// 7. bill transfer orders are listed in strictly increasing order of bill identifiers
+	// 8. bill transfer orders are listed in strictly increasing order of bill identifiers
 	// (in particular, this ensures that no bill can be included multiple times)
-	// 8. bill transfer orders contain proper nonce
-	// 9. bill transfer orders contain proper target bearer
+	// 9. bill transfer orders contain proper nonce
+	// 10. bill transfer orders contain proper target bearer
 	var prevDcTx TransferDC
 	for i, dcTx := range tx.DCTransfers() {
 		if i > 0 {
@@ -115,10 +116,10 @@ func validateSwap(tx Swap, hashAlgorithm crypto.Hash) error {
 		prevDcTx = dcTx
 	}
 
-	// 10. verify owner
+	// 11. verify owner
 	// done in validateGenericTransaction function
 
-	// TODO 11. verify ledger proof https://guardtime.atlassian.net/browse/AB-50
+	// TODO 12. verify block proof https://guardtime.atlassian.net/browse/AB-50
 
 	return nil
 }

@@ -2,6 +2,7 @@ package money
 
 import (
 	"bytes"
+	gocrypto "crypto"
 	"sort"
 
 	"github.com/alphabill-org/alphabill/internal/block"
@@ -164,4 +165,23 @@ func signTx(tx *txsystem.Transaction, ac *wallet.AccountKey) error {
 	}
 	tx.OwnerProof = script.PredicateArgumentPayToPublicKeyHashDefault(sig, ac.PubKey)
 	return nil
+}
+
+// calculateDcNonce calculates dc nonce aka swap tx id
+func calculateDcNonce(bills []*bill) []byte {
+	var billIds [][]byte
+	for _, b := range bills {
+		billIds = append(billIds, b.getId())
+	}
+
+	// sort billIds in ascending order
+	sort.Slice(billIds, func(i, j int) bool {
+		return bytes.Compare(billIds[i], billIds[j]) < 0
+	})
+
+	hasher := gocrypto.SHA256.New()
+	for _, billId := range billIds {
+		hasher.Write(billId)
+	}
+	return hasher.Sum(nil)
 }

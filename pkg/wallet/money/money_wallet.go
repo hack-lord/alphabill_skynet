@@ -6,7 +6,6 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
-	"sort"
 
 	"github.com/alphabill-org/alphabill/internal/block"
 	abcrypto "github.com/alphabill-org/alphabill/internal/crypto"
@@ -36,6 +35,7 @@ var (
 	ErrInvalidPubKey        = errors.New("invalid public key, public key must be in compressed secp256k1 format")
 	ErrInvalidPassword      = errors.New("invalid password")
 	ErrInvalidBlockSystemID = errors.New("invalid system identifier")
+	errSkipAccountDC        = errors.New("skipping dust collection, account %d has less than 2 bills")
 )
 
 type (
@@ -524,15 +524,18 @@ func (w *Wallet) trySwap(tx TxContext, accountIndex uint64) error {
 			return err
 		}
 		if dcMeta != nil && dcMeta.isSwapRequired(blockHeight, billGroup.valueSum) {
+			// recalculate swap id in case of partial swap (timed out dc transfer e.g. lost dust tx etc)
+			dcNonce := calculateDcNonce(billGroup.dcBills)
 			maxBlockNumber, err := w.GetMaxBlockNumber()
 			if err != nil {
 				return err
 			}
 			timeout := maxBlockNumber + swapTimeoutBlockCount
-			err = w.swapDcBills(tx, billGroup.dcBills, billGroup.dcNonce, timeout, accountIndex)
+			err = w.swapDcBills(tx, billGroup.dcBills, dcNonce, timeout, accountIndex)
 			if err != nil {
 				return err
 			}
+			// TODO: signal the user if we did partial swap?
 			w.dcWg.UpdateTimeout(billGroup.dcNonce, timeout)
 		}
 	}
@@ -575,8 +578,7 @@ func (w *Wallet) collectDust(ctx context.Context, blocking bool, accountIndex ui
 			return err
 		}
 		if len(bills) < 2 {
-			log.Info("Account ", accountIndex, " has less than 2 bills, skipping dust collection")
-			return nil
+			return errSkipAccountDC
 		}
 		var expectedSwaps []expectedSwap
 		dcBillGroups := groupDcBills(bills)
@@ -618,7 +620,7 @@ func (w *Wallet) collectDust(ctx context.Context, blocking bool, accountIndex ui
 					return err
 				}
 
-				log.Info("sending dust transfer tx for bill=", b.Id, " account=", accountIndex)
+				log.Info("sending dust transfer tx for bill=", b.Id, " account=", accountIndex, " timeout=", dcTimeout)
 				res, err := w.SendTransaction(tx)
 				if err != nil {
 					return err
@@ -642,6 +644,10 @@ func (w *Wallet) collectDust(ctx context.Context, blocking bool, accountIndex ui
 		return nil
 	})
 	if err != nil {
+		if errors.Is(err, errSkipAccountDC) {
+			log.Info(fmt.Sprintf(err.Error(), accountIndex))
+			return nil
+		}
 		return err
 	}
 	if blocking {
@@ -743,24 +749,6 @@ func createMoneyWallet(config WalletConfig, db Db, mnemonic string) (mw *Wallet,
 		accountKeys:  *keys.AccountKey.PubKeyHash,
 	})
 	return
-}
-
-func calculateDcNonce(bills []*bill) []byte {
-	var billIds [][]byte
-	for _, b := range bills {
-		billIds = append(billIds, b.getId())
-	}
-
-	// sort billIds in ascending order
-	sort.Slice(billIds, func(i, j int) bool {
-		return bytes.Compare(billIds[i], billIds[j]) < 0
-	})
-
-	hasher := crypto.Hash.New(crypto.SHA256)
-	for _, billId := range billIds {
-		hasher.Write(billId)
-	}
-	return hasher.Sum(nil)
 }
 
 // groupDcBills groups bills together by dc nonce
