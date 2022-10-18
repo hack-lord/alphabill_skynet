@@ -477,8 +477,11 @@ func (n *Node) handleOrForwardTransaction(tx txsystem.GenericTransaction) bool {
 		},
 		[]peer.ID{leader},
 	)
-	// TODO unreported error?
-	return err == nil
+	if err != nil {
+		logger.Info("Failed to forward tx %X to %v error %v", tx.Hash(gocrypto.SHA256), leader, err)
+		return false
+	}
+	return true
 }
 
 func (n *Node) process(tx txsystem.GenericTransaction) {

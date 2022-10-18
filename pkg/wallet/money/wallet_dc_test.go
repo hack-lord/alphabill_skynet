@@ -5,13 +5,13 @@ import (
 	"crypto"
 	"testing"
 
-	billtx "github.com/alphabill-org/alphabill/internal/txsystem/money"
-
 	"github.com/alphabill-org/alphabill/internal/block"
 	"github.com/alphabill-org/alphabill/internal/certificates"
 	"github.com/alphabill-org/alphabill/internal/hash"
 	testtransaction "github.com/alphabill-org/alphabill/internal/testutils/transaction"
 	"github.com/alphabill-org/alphabill/internal/txsystem"
+	billtx "github.com/alphabill-org/alphabill/internal/txsystem/money"
+	"github.com/alphabill-org/alphabill/pkg/wallet/log"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 )
@@ -111,12 +111,14 @@ func TestSwapIsTriggeredWhenDcSumIsReached(t *testing.T) {
 
 func TestSwapIsTriggeredWhenDcTimeoutIsReached(t *testing.T) {
 	// create wallet with dc bill and non dc bill
+	_ = log.InitStdoutLogger(log.INFO)
 	w, mockClient := CreateTestWallet(t)
-	nonce := uint256.NewInt(2)
-	nonce32 := nonce.Bytes32()
+	dcBillBytes := uint256.NewInt(2).Bytes32()
+	nonceBytes := hash.Sum256(dcBillBytes[:])
+	nonceUint256 := uint256.NewInt(0).SetBytes(nonceBytes)
 	addBill(t, w, 1)
-	addDcBill(t, w, nonce, 2, 10)
-	setDcMetadata(t, w, nonce32[:], &dcMetadata{DcValueSum: 3, DcTimeout: dcTimeoutBlockCount, SwapTimeout: 0})
+	addDcBill(t, w, nonceUint256, 2, 10)
+	setDcMetadata(t, w, nonceBytes, &dcMetadata{DcValueSum: 3, DcTimeout: dcTimeoutBlockCount, SwapTimeout: 0})
 
 	// when dcTimeout is reached
 	mockClient.SetMaxBlockNumber(dcTimeoutBlockCount)
@@ -138,15 +140,17 @@ func TestSwapIsTriggeredWhenDcTimeoutIsReached(t *testing.T) {
 	// verify swap tx
 	tx := mockClient.GetRecordedTransactions()[0]
 	swapTx := parseSwapTx(t, tx)
-	require.EqualValues(t, nonce32[:], tx.UnitId)
+	require.EqualValues(t, nonceBytes, tx.UnitId)
+
+	// verify swap dc tx
 	require.Len(t, swapTx.DcTransfers, 1)
 	dcTx := parseDcTx(t, swapTx.DcTransfers[0])
-	require.EqualValues(t, nonce32[:], dcTx.Nonce)
+	require.EqualValues(t, nonceBytes, dcTx.Nonce)
 	require.EqualValues(t, 2, dcTx.TargetValue)
 
 	// and metadata is updated
 	verifyBlockHeight(t, w, dcTimeoutBlockCount)
-	verifyDcMetadata(t, w, nonce32[:], &dcMetadata{SwapTimeout: dcTimeoutBlockCount + swapTimeoutBlockCount})
+	verifyDcMetadata(t, w, nonceBytes, &dcMetadata{SwapTimeout: dcTimeoutBlockCount + swapTimeoutBlockCount})
 	verifyBalance(t, w, 3)
 }
 
@@ -154,14 +158,15 @@ func TestSwapIsTriggeredWhenSwapTimeoutIsReached(t *testing.T) {
 	// wallet contains 1 dc bill and 1 normal bill
 	w, mockClient := CreateTestWallet(t)
 	addBill(t, w, 1)
-	nonce := uint256.NewInt(2)
-	nonce32 := nonce.Bytes32()
-	addDcBill(t, w, nonce, 2, 10)
-	setBlockHeight(t, w, swapTimeoutBlockCount-1)
-	mockClient.SetMaxBlockNumber(swapTimeoutBlockCount)
-	setDcMetadata(t, w, nonce32[:], &dcMetadata{SwapTimeout: swapTimeoutBlockCount})
+	dcBillBytes := uint256.NewInt(2).Bytes32()
+	nonceBytes := hash.Sum256(dcBillBytes[:])
+	nonceUint256 := uint256.NewInt(0).SetBytes(nonceBytes)
+	addDcBill(t, w, nonceUint256, 2, 10)
+	setDcMetadata(t, w, nonceBytes, &dcMetadata{SwapTimeout: swapTimeoutBlockCount})
 
 	// when swap timeout is reached
+	setBlockHeight(t, w, swapTimeoutBlockCount-1)
+	mockClient.SetMaxBlockNumber(swapTimeoutBlockCount)
 	b := &block.Block{
 		SystemIdentifier:   alphabillMoneySystemId,
 		BlockNumber:        swapTimeoutBlockCount,
@@ -176,15 +181,15 @@ func TestSwapIsTriggeredWhenSwapTimeoutIsReached(t *testing.T) {
 	require.Len(t, mockClient.GetRecordedTransactions(), 1)
 	tx := mockClient.GetRecordedTransactions()[0]
 	swapTx := parseSwapTx(t, tx)
-	require.EqualValues(t, nonce32[:], tx.UnitId)
+	require.EqualValues(t, nonceBytes, tx.UnitId)
 	require.NotNil(t, swapTx)
 	require.Len(t, swapTx.DcTransfers, 1)
 	dcTx := parseDcTx(t, swapTx.DcTransfers[0])
-	require.EqualValues(t, nonce32[:], dcTx.Nonce)
+	require.EqualValues(t, nonceBytes, dcTx.Nonce)
 
 	// and metadata is updated
 	verifyBlockHeight(t, w, swapTimeoutBlockCount)
-	verifyDcMetadata(t, w, nonce32[:], &dcMetadata{SwapTimeout: swapTimeoutBlockCount * 2})
+	verifyDcMetadata(t, w, nonceBytes, &dcMetadata{SwapTimeout: swapTimeoutBlockCount * 2})
 	verifyBalance(t, w, 3)
 }
 
@@ -285,6 +290,64 @@ func TestExpiredDcBillsGetDeleted(t *testing.T) {
 	for _, b := range bills {
 		require.False(t, b.isExpired(blockHeight))
 	}
+}
+
+func TestSwapIdIsCalculatedOnlyFromConfirmedDustTxs(t *testing.T) {
+	// create wallet with three bills
+	_ = log.InitStdoutLogger(log.INFO)
+	w, mockClient := CreateTestWallet(t)
+	b1 := addBill(t, w, 1)
+	b2 := addBill(t, w, 2)
+	_ = addBill(t, w, 3)
+
+	// when dc runs
+	err := w.collectDust(context.Background(), false, 0)
+	require.NoError(t, err)
+
+	// then metadata is updated
+	dcNonce := calculateExpectedDcNonce(t, w)
+	verifyBlockHeight(t, w, 0)
+	verifyDcMetadata(t, w, dcNonce, &dcMetadata{DcValueSum: 6, DcTimeout: dcTimeoutBlockCount, SwapTimeout: 0})
+
+	// and three dc txs are broadcast
+	dcTxs := mockClient.GetRecordedTransactions()
+	require.Len(t, dcTxs, 3)
+	for _, tx := range dcTxs {
+		require.NotNil(t, parseDcTx(t, tx))
+	}
+
+	// when 2 of 3 dc bills are confirmed before timeout
+	mockClient.SetMaxBlockNumber(dcTimeoutBlockCount)
+	_ = w.db.Do().SetBlockNumber(dcTimeoutBlockCount - 1)
+	b := &block.Block{
+		SystemIdentifier:   alphabillMoneySystemId,
+		BlockNumber:        dcTimeoutBlockCount,
+		PreviousBlockHash:  hash.Sum256([]byte{}),
+		Transactions:       dcTxs[0:2],
+		UnicityCertificate: &certificates.UnicityCertificate{},
+	}
+	err = w.ProcessBlock(b)
+	require.NoError(t, err)
+
+	// then swap should be broadcast
+	require.Len(t, mockClient.GetRecordedTransactions(), 4)
+
+	// and swap id should be recalculated based on confirmed dc transactions
+	tx := mockClient.GetRecordedTransactions()[3]
+	swapTx := parseSwapTx(t, tx)
+	expectedSwapId := calculateDcNonce([]*bill{b1, b2})
+	require.Len(t, swapTx.DcTransfers, 2)
+	require.EqualValues(t, expectedSwapId, tx.UnitId)
+
+	// and new dc metadata group is created
+	verifyBlockHeight(t, w, dcTimeoutBlockCount)
+	verifyDcMetadata(t, w, expectedSwapId, &dcMetadata{SwapTimeout: dcTimeoutBlockCount + swapTimeoutBlockCount})
+	verifyBalance(t, w, 6)
+
+	// and old metadata group is deleted
+	dcMetaData, err := w.db.Do().GetDcMetadata(0, dcNonce)
+	require.NoError(t, err)
+	require.Nil(t, dcMetaData)
 }
 
 func addBills(t *testing.T, w *Wallet) {

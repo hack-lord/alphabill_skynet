@@ -348,7 +348,7 @@ func (m *moneyTxSystem) validateSplitTx(tx Split) error {
 }
 
 func (m *moneyTxSystem) validateSwapTx(tx Swap) error {
-	// 2. there is sufficient DC-money supply
+	// 3. there is sufficient DC-money supply
 	dcMoneySupply, err := m.revertibleState.GetUnit(dustCollectorMoneySupplyID)
 	if err != nil {
 		return err
@@ -360,7 +360,7 @@ func (m *moneyTxSystem) validateSwapTx(tx Swap) error {
 	if dcMoneySupplyBill.V < tx.TargetValue() {
 		return ErrSwapInsufficientDCMoneySupply
 	}
-	// 3.there exists no bill with identifier
+	// 4. there exists no bill with identifier
 	_, err = m.revertibleState.GetUnit(tx.UnitID())
 	if err == nil {
 		return ErrSwapBillAlreadyExists
