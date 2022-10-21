@@ -166,8 +166,9 @@ func (v *VDClient) prepareProcessor(timeout uint64, hash []byte) VDBlockProcesso
 			return nil
 		}
 		for _, tx := range b.GetTransactions() {
-			log.Debug("Processing block #", b.GetBlockNumber())
+			log.Debug("Processing block #%d", b.GetBlockNumber())
 			if hash != nil {
+				log.Debug("Comparing ", hex.EncodeToString(hash), " with ", hex.EncodeToString(tx.GetUnitId()))
 				// if hash is provided, print only the corresponding block
 				if bytes.Equal(hash, tx.GetUnitId()) {
 					log.Info(fmt.Sprintf("Tx in block #%d, hash: %s", b.GetBlockNumber(), hex.EncodeToString(hash)))
