@@ -163,7 +163,8 @@ func (b *burnFungibleTokenTxExecutor) Execute(gtx txsystem.GenericTransaction, c
 					t:         currentBlockNr,
 					backlink:  h,
 				}
-			}, h))
+			}, h),
+		rma.DeleteItem(unitID))
 }
 
 func (j *joinFungibleTokenTxExecutor) Execute(gtx txsystem.GenericTransaction, currentBlockNr uint64) error {
