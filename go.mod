@@ -1,6 +1,6 @@
 module gitdc.ee.guardtime.com/alphabill/alphabill
 
-go 1.18
+go 1.19
 
 replace (
 	github.com/apache/thrift v0.13.0 => github.com/apache/thrift v0.16.0
