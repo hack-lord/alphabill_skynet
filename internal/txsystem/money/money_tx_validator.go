@@ -142,7 +142,7 @@ func validateSwap(tx Swap, hashAlgorithm crypto.Hash, trustBase map[string]abcry
 	// 12. the owner proof of the swap transaction satisfies the bearer condition of the new bill
 	err := script.RunScript(tx.OwnerProof(), tx.OwnerCondition(), tx.SigBytes())
 	if err != nil {
-		return ErrSwapOwnerProofFailed
+		return errors.Wrap(err, ErrSwapOwnerProofFailed.Error())
 	}
 	return nil
 }
