@@ -24,7 +24,7 @@ import (
 	testsig "gitdc.ee.guardtime.com/alphabill/alphabill/internal/testutils/sig"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/timer"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/txsystem"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 )
 

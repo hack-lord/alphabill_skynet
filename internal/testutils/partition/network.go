@@ -15,7 +15,7 @@ import (
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/partition"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/rootchain"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/txsystem"
-	libp2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
+	libp2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	"google.golang.org/protobuf/proto"
 )
 

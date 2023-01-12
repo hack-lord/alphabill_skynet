@@ -9,7 +9,7 @@ import (
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/network/protocol/blockproposal"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/network/protocol/certification"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/txsystem"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"google.golang.org/protobuf/proto"
 )
 

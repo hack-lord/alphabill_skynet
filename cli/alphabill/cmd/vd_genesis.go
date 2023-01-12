@@ -9,7 +9,7 @@ import (
 
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/util"
 
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/partition"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/txsystem/verifiable_data"

@@ -10,7 +10,7 @@ import (
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/network/protocol/certification"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/network/protocol/genesis"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/txsystem"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -94,13 +94,13 @@ func WithParams(params *anypb.Any) GenesisOption {
 // block certification request by calling the TransactionSystem.EndBlock function. Must contain PeerID, signer, and
 // system identifier and public encryption key configuration:
 //
-//    pn, err := NewNodeGenesis(
-//					txSystem,
-//					WithPeerID(myPeerID),
-//					WithSigningKey(signer),
-//					WithSystemIdentifier(sysID),
-// 					WithEncryptionPubKey(encPubKey),
-//				)
+//	   pn, err := NewNodeGenesis(
+//						txSystem,
+//						WithPeerID(myPeerID),
+//						WithSigningKey(signer),
+//						WithSystemIdentifier(sysID),
+//						WithEncryptionPubKey(encPubKey),
+//					)
 //
 // This function must be called by all partition nodes in the network.
 func NewNodeGenesis(txSystem txsystem.TransactionSystem, opts ...GenesisOption) (*genesis.PartitionNode, error) {

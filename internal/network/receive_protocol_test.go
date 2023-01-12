@@ -7,7 +7,7 @@ import (
 	test "gitdc.ee.guardtime.com/alphabill/alphabill/internal/testutils"
 	testtransaction "gitdc.ee.guardtime.com/alphabill/alphabill/internal/testutils/transaction"
 	"gitdc.ee.guardtime.com/alphabill/alphabill/internal/txsystem"
-	"github.com/libp2p/go-libp2p-core/peerstore"
+	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 )
