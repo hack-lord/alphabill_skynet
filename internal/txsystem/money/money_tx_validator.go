@@ -113,27 +113,13 @@ func validateSwap(tx Swap, hashAlgorithm crypto.Hash, trustBase map[string]abcry
 	for i, dcTx := range dustTransfers {
 		// 9. bill transfer orders are listed in strictly increasing order of bill identifiers
 		// (in particular, this ensures that no bill can be included multiple times)
-		if i > 0 {
-			if !dcTx.UnitID().Gt(prevDcTx.UnitID()) {
-				return ErrSwapDustTransfersInvalidOrder
-			}
+		if (i > 0) && !dcTx.UnitID().Gt(prevDcTx.UnitID()) {
+			return ErrSwapDustTransfersInvalidOrder
 		}
-		// 10. bill transfer orders contain proper nonce
-		if !bytes.Equal(dcTx.Nonce(), unitIdBytes[:]) {
-			return ErrSwapInvalidNonce
-		}
-		// 11. bill transfer orders contain proper target bearer
-		if !bytes.Equal(dcTx.TargetBearer(), tx.OwnerCondition()) {
-			return ErrSwapInvalidTargetBearer
-		}
-		// 13. block proofs of the bill transfer orders verify
-		proof := proofs[i]
-		if proof.ProofType != block.ProofType_PRIM {
-			return ErrInvalidProofType
-		}
-		err := proof.Verify(util.Uint256ToBytes(dcTx.UnitID()), dcTx, trustBase, hashAlgorithm)
+
+		err := validateDustTransfer(dcTx, proofs[i], unitIdBytes, tx.OwnerCondition(), hashAlgorithm, trustBase)
 		if err != nil {
-			return errors.Wrap(err, "proof is not valid")
+			return err
 		}
 
 		prevDcTx = dcTx
@@ -144,6 +130,27 @@ func validateSwap(tx Swap, hashAlgorithm crypto.Hash, trustBase map[string]abcry
 	if err != nil {
 		return errors.Wrap(err, ErrSwapOwnerProofFailed.Error())
 	}
+	return nil
+}
+
+func validateDustTransfer(dcTx TransferDC, proof *block.BlockProof, unitIdBytes [32]byte, ownerCondition []byte, hashAlgorithm crypto.Hash, trustBase map[string]abcrypto.Verifier) error {
+	// 10. bill transfer orders contain proper nonce
+	if !bytes.Equal(dcTx.Nonce(), unitIdBytes[:]) {
+		return ErrSwapInvalidNonce
+	}
+	// 11. bill transfer orders contain proper target bearer
+	if !bytes.Equal(dcTx.TargetBearer(), ownerCondition) {
+		return ErrSwapInvalidTargetBearer
+	}
+	// 13. block proofs of the bill transfer orders verify
+	if proof.ProofType != block.ProofType_PRIM {
+		return ErrInvalidProofType
+	}
+	err := proof.Verify(util.Uint256ToBytes(dcTx.UnitID()), dcTx, trustBase, hashAlgorithm)
+	if err != nil {
+		return errors.Wrap(err, "proof is not valid")
+	}
+
 	return nil
 }
 
