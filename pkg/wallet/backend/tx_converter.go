@@ -5,11 +5,14 @@ import (
 	"github.com/alphabill-org/alphabill/internal/txsystem/money"
 )
 
-var txConverter = &TxConverter{}
+var (
+	MoneyTxConverter = &TxConverter{}
+	MoneySystemID    = []byte{0, 0, 0, 0}
+)
 
 type TxConverter struct {
 }
 
 func (t *TxConverter) ConvertTx(tx *txsystem.Transaction) (txsystem.GenericTransaction, error) {
-	return money.NewMoneyTx(alphabillMoneySystemId, tx)
+	return money.NewMoneyTx(MoneySystemID, tx)
 }

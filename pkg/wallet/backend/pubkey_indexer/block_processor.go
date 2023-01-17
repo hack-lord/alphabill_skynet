@@ -1,4 +1,4 @@
-package backend
+package pubkey_indexer
 
 import (
 	"crypto"
@@ -10,10 +10,11 @@ import (
 	utiltx "github.com/alphabill-org/alphabill/internal/txsystem/util"
 	"github.com/alphabill-org/alphabill/internal/util"
 	"github.com/alphabill-org/alphabill/pkg/wallet"
+	"github.com/alphabill-org/alphabill/pkg/wallet/backend"
 	wlog "github.com/alphabill-org/alphabill/pkg/wallet/log"
 )
 
-const dustBillDeletionTimeout = 65536
+const DustBillDeletionTimeout = 65536
 
 type BlockProcessor struct {
 	store BillStore
@@ -52,7 +53,7 @@ func (p *BlockProcessor) ProcessBlock(b *block.Block) error {
 }
 
 func (p *BlockProcessor) processTx(txPb *txsystem.Transaction, b *block.Block, pubKey *Pubkey) error {
-	gtx, err := moneytx.NewMoneyTx(alphabillMoneySystemId, txPb)
+	gtx, err := moneytx.NewMoneyTx(backend.MoneySystemID, txPb)
 	if err != nil {
 		return err
 	}
@@ -87,7 +88,7 @@ func (p *BlockProcessor) processTx(txPb *txsystem.Transaction, b *block.Block, p
 			if err != nil {
 				return err
 			}
-			err = p.store.SetBillExpirationTime(b.UnicityCertificate.InputRecord.RoundNumber+dustBillDeletionTimeout, pubKey.Pubkey, txPb.UnitId)
+			err = p.store.SetBillExpirationTime(b.UnicityCertificate.InputRecord.RoundNumber+DustBillDeletionTimeout, pubKey.Pubkey, txPb.UnitId)
 			if err != nil {
 				return err
 			}
@@ -160,7 +161,7 @@ func (p *BlockProcessor) processTx(txPb *txsystem.Transaction, b *block.Block, p
 }
 
 func (p *BlockProcessor) saveBillWithProof(pubkey []byte, b *block.Block, tx *txsystem.Transaction, bi *Bill) error {
-	genericBlock, err := b.ToGenericBlock(txConverter)
+	genericBlock, err := b.ToGenericBlock(backend.MoneyTxConverter)
 	if err != nil {
 		return err
 	}

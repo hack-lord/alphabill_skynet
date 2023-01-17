@@ -1,4 +1,4 @@
-package backend
+package pubkey_indexer
 
 import (
 	"context"
@@ -19,6 +19,7 @@ import (
 	"github.com/alphabill-org/alphabill/internal/txsystem"
 	moneytx "github.com/alphabill-org/alphabill/internal/txsystem/money"
 	"github.com/alphabill-org/alphabill/pkg/wallet"
+	"github.com/alphabill-org/alphabill/pkg/wallet/backend"
 	"github.com/alphabill-org/alphabill/pkg/wallet/log"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stretchr/testify/require"
@@ -435,7 +436,7 @@ func TestAddProofRequest_Ok(t *testing.T) {
 		TargetValue: txValue,
 		NewBearer:   script.PredicatePayToPublicKeyHashDefault(hash.Sum256(pubkey)),
 	}))
-	gtx, _ := txConverter.ConvertTx(tx)
+	gtx, _ := backend.MoneyTxConverter.ConvertTx(tx)
 	txHash := gtx.Hash(crypto.SHA256)
 	proof, verifiers := createProofForTx(t, tx)
 	store, _ := createTestBillStore(t)
@@ -483,7 +484,7 @@ func TestAddProofRequest_UnindexedKey_NOK(t *testing.T) {
 	tx := testtransaction.NewTransaction(t, testtransaction.WithAttributes(&moneytx.TransferOrder{
 		TargetValue: txValue,
 	}))
-	gtx, _ := txConverter.ConvertTx(tx)
+	gtx, _ := backend.MoneyTxConverter.ConvertTx(tx)
 	txHash := gtx.Hash(crypto.SHA256)
 	proof, verifiers := createProofForTx(t, tx)
 
@@ -521,7 +522,7 @@ func TestAddProofRequest_InvalidPredicate_NOK(t *testing.T) {
 		TargetValue: txValue,
 		NewBearer:   script.PredicatePayToPublicKeyHashDefault(hash.Sum256([]byte("invalid pub key"))),
 	}))
-	gtx, _ := txConverter.ConvertTx(tx)
+	gtx, _ := backend.MoneyTxConverter.ConvertTx(tx)
 	txHash := gtx.Hash(crypto.SHA256)
 	proof, verifiers := createProofForTx(t, tx)
 
@@ -561,7 +562,7 @@ func TestAddDCBillProofRequest_Ok(t *testing.T) {
 		TargetValue:  txValue,
 		TargetBearer: script.PredicatePayToPublicKeyHashDefault(hash.Sum256(pubkey)),
 	}))
-	gtx, _ := txConverter.ConvertTx(tx)
+	gtx, _ := backend.MoneyTxConverter.ConvertTx(tx)
 	txHash := gtx.Hash(crypto.SHA256)
 	proof, verifiers := createProofForTx(t, tx)
 	store, _ := createTestBillStore(t)
@@ -608,13 +609,13 @@ func TestAddDCBillProofRequest_Ok(t *testing.T) {
 
 func createProofForTx(t *testing.T, tx *txsystem.Transaction) (*block.BlockProof, map[string]abcrypto.Verifier) {
 	b := &block.Block{
-		SystemIdentifier:   alphabillMoneySystemId,
+		SystemIdentifier:   backend.MoneySystemID,
 		PreviousBlockHash:  hash.Sum256([]byte{}),
 		Transactions:       []*txsystem.Transaction{tx},
 		UnicityCertificate: &certificates.UnicityCertificate{InputRecord: &certificates.InputRecord{RoundNumber: 1}},
 	}
-	b, verifiers := testblock.CertifyBlock(t, b, txConverter)
-	genericBlock, _ := b.ToGenericBlock(txConverter)
+	b, verifiers := testblock.CertifyBlock(t, b, backend.MoneyTxConverter)
+	genericBlock, _ := b.ToGenericBlock(backend.MoneyTxConverter)
 	proof, _ := block.NewPrimaryProof(genericBlock, tx.UnitId, crypto.SHA256)
 	return proof, verifiers
 }

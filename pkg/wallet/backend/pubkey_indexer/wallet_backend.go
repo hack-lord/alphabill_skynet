@@ -1,4 +1,4 @@
-package backend
+package pubkey_indexer
 
 import (
 	"context"
@@ -10,11 +10,10 @@ import (
 	"github.com/alphabill-org/alphabill/internal/txsystem"
 	moneytx "github.com/alphabill-org/alphabill/internal/txsystem/money"
 	"github.com/alphabill-org/alphabill/pkg/wallet"
+	"github.com/alphabill-org/alphabill/pkg/wallet/backend"
 	wlog "github.com/alphabill-org/alphabill/pkg/wallet/log"
 	txverifier "github.com/alphabill-org/alphabill/pkg/wallet/money/tx_verifier"
 )
-
-var alphabillMoneySystemId = []byte{0, 0, 0, 0}
 
 var (
 	errKeyNotIndexed  = errors.New("pubkey is not indexed")
@@ -136,7 +135,7 @@ func (w *WalletBackend) SetBills(pubkey []byte, bills *moneytx.Bills) error {
 	if len(bills.Bills) == 0 {
 		return errEmptyBillsList
 	}
-	err := bills.Verify(txConverter, w.verifiers)
+	err := bills.Verify(backend.MoneyTxConverter, w.verifiers)
 	if err != nil {
 		return err
 	}
@@ -150,7 +149,7 @@ func (w *WalletBackend) SetBills(pubkey []byte, bills *moneytx.Bills) error {
 	pubkeyHash := wallet.NewKeyHash(pubkey)
 	domainBills := newBillsFromProto(bills)
 	for _, bill := range domainBills {
-		tx, err := txConverter.ConvertTx(bill.TxProof.Tx)
+		tx, err := backend.MoneyTxConverter.ConvertTx(bill.TxProof.Tx)
 		if err != nil {
 			return err
 		}
