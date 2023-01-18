@@ -38,7 +38,7 @@ func TestWalletBackend_BillsCanBeIndexedByPredicates(t *testing.T) {
 			UnicityCertificate: &certificates.UnicityCertificate{InputRecord: &certificates.InputRecord{RoundNumber: 1}},
 			Transactions: []*txsystem.Transaction{{
 				UnitId:                billId1,
-				SystemId:              backend.MoneySystemID,
+				SystemId:              moneySystemID,
 				TransactionAttributes: moneytesttx.CreateBillTransferTx(hash.Sum256(pubkey1)),
 			}},
 		},
@@ -46,7 +46,7 @@ func TestWalletBackend_BillsCanBeIndexedByPredicates(t *testing.T) {
 			UnicityCertificate: &certificates.UnicityCertificate{InputRecord: &certificates.InputRecord{RoundNumber: 2}},
 			Transactions: []*txsystem.Transaction{{
 				UnitId:                billId2,
-				SystemId:              backend.MoneySystemID,
+				SystemId:              moneySystemID,
 				TransactionAttributes: moneytesttx.CreateBillTransferTx(hash.Sum256(pubkey2)),
 			}},
 		},
@@ -87,7 +87,7 @@ func TestGetBills_OK(t *testing.T) {
 		TargetValue: txValue,
 		NewBearer:   bearer,
 	}))
-	gtx, err := backend.MoneyTxConverter.ConvertTx(tx)
+	gtx, err := backend.NewTxConverter(moneySystemID).ConvertTx(tx)
 	require.NoError(t, err)
 	txHash := gtx.Hash(gocrypto.SHA256)
 
@@ -154,7 +154,7 @@ func TestGetBills_SHA512OK(t *testing.T) {
 
 func createWalletBackend(t *testing.T, abclient client.ABClient) *WalletBackend {
 	storage, _ := createTestBillStore(t)
-	bp := NewBlockProcessor(storage)
+	bp := NewBlockProcessor(storage, backend.NewTxConverter(moneySystemID))
 	genericWallet := wallet.New().SetBlockProcessor(bp).SetABClient(abclient).Build()
 	return New(genericWallet, storage)
 }

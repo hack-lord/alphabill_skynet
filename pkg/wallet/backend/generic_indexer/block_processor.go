@@ -9,18 +9,23 @@ import (
 	moneytx "github.com/alphabill-org/alphabill/internal/txsystem/money"
 	utiltx "github.com/alphabill-org/alphabill/internal/txsystem/util"
 	"github.com/alphabill-org/alphabill/internal/util"
-	"github.com/alphabill-org/alphabill/pkg/wallet/backend"
 	wlog "github.com/alphabill-org/alphabill/pkg/wallet/log"
 )
 
 const DustBillDeletionTimeout = 65536
 
-type BlockProcessor struct {
-	store BillStore
-}
+type (
+	BlockProcessor struct {
+		store       BillStore
+		TxConverter TxConverter
+	}
+	TxConverter interface {
+		ConvertTx(tx *txsystem.Transaction) (txsystem.GenericTransaction, error)
+	}
+)
 
-func NewBlockProcessor(store BillStore) *BlockProcessor {
-	return &BlockProcessor{store: store}
+func NewBlockProcessor(store BillStore, txConverter TxConverter) *BlockProcessor {
+	return &BlockProcessor{store: store, TxConverter: txConverter}
 }
 
 func (p *BlockProcessor) ProcessBlock(b *block.Block) error {
@@ -49,7 +54,7 @@ func (p *BlockProcessor) ProcessBlock(b *block.Block) error {
 }
 
 func (p *BlockProcessor) processTx(txPb *txsystem.Transaction, b *block.Block, dbTx BillStoreTx) error {
-	gtx, err := backend.MoneyTxConverter.ConvertTx(txPb)
+	gtx, err := p.TxConverter.ConvertTx(txPb)
 	if err != nil {
 		return err
 	}
@@ -140,7 +145,7 @@ func (p *BlockProcessor) processTx(txPb *txsystem.Transaction, b *block.Block, d
 }
 
 func (p *BlockProcessor) saveBillWithProof(b *block.Block, tx *txsystem.Transaction, dbTx BillStoreTx, bill *Bill) error {
-	genericBlock, err := b.ToGenericBlock(backend.MoneyTxConverter)
+	genericBlock, err := b.ToGenericBlock(p.TxConverter)
 	if err != nil {
 		return err
 	}

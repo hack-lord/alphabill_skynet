@@ -38,7 +38,7 @@ func TestWalletBackend_BillsCanBeIndexedByPubkeys(t *testing.T) {
 			UnicityCertificate: &certificates.UnicityCertificate{InputRecord: &certificates.InputRecord{RoundNumber: 1}},
 			Transactions: []*txsystem.Transaction{{
 				UnitId:                billId1,
-				SystemId:              backend.MoneySystemID,
+				SystemId:              moneySystemID,
 				TransactionAttributes: moneytesttx.CreateBillTransferTx(hash.Sum256(pubKey1)),
 			}},
 		},
@@ -46,7 +46,7 @@ func TestWalletBackend_BillsCanBeIndexedByPubkeys(t *testing.T) {
 			UnicityCertificate: &certificates.UnicityCertificate{InputRecord: &certificates.InputRecord{RoundNumber: 2}},
 			Transactions: []*txsystem.Transaction{{
 				UnitId:                billId2,
-				SystemId:              backend.MoneySystemID,
+				SystemId:              moneySystemID,
 				TransactionAttributes: moneytesttx.CreateBillTransferTx(hash.Sum256(pubkey2)),
 			}},
 		},
@@ -91,12 +91,13 @@ func TestSetBill_OK(t *testing.T) {
 		TargetValue: txValue,
 		NewBearer:   script.PredicatePayToPublicKeyHashDefault(hash.Sum256(pubkey)),
 	}))
-	gtx, _ := backend.MoneyTxConverter.ConvertTx(tx)
+	txConverter := backend.NewTxConverter(moneySystemID)
+	gtx, _ := txConverter.ConvertTx(tx)
 	txHash := gtx.Hash(gocrypto.SHA256)
 	proof, verifiers := createProofForTx(t, tx)
 
 	store, _ := createTestBillStore(t)
-	service := New(nil, store, verifiers)
+	service := New(nil, store, txConverter, verifiers)
 	b := &Bill{
 		Id:          tx.UnitId,
 		Value:       txValue,
@@ -139,13 +140,14 @@ func TestSetBill_InvalidProof_NOK(t *testing.T) {
 	tx := testtransaction.NewTransaction(t, testtransaction.WithAttributes(&moneytx.TransferOrder{
 		TargetValue: txValue,
 	}))
-	gtx, _ := backend.MoneyTxConverter.ConvertTx(tx)
+	txConverter := backend.NewTxConverter(moneySystemID)
+	gtx, _ := txConverter.ConvertTx(tx)
 	txHash := gtx.Hash(gocrypto.SHA256)
 	proof, verifiers := createProofForTx(t, tx)
 	proof.BlockHeaderHash = make([]byte, 32) // invalidate proof
 
 	store, _ := createTestBillStore(t)
-	service := New(nil, store, verifiers)
+	service := New(nil, store, txConverter, verifiers)
 	pubkey := []byte{0}
 	_ = service.AddKey(pubkey)
 	b := &Bill{
@@ -164,8 +166,9 @@ func TestSetBill_InvalidProof_NOK(t *testing.T) {
 
 func createWalletBackend(t *testing.T, abclient client.ABClient) *WalletBackend {
 	storage, _ := createTestBillStore(t)
-	bp := NewBlockProcessor(storage)
+	txConverter := backend.NewTxConverter(moneySystemID)
+	bp := NewBlockProcessor(storage, txConverter)
 	genericWallet := wallet.New().SetBlockProcessor(bp).SetABClient(abclient).Build()
 	_, verifier := testsig.CreateSignerAndVerifier(t)
-	return New(genericWallet, storage, map[string]crypto.Verifier{"test": verifier})
+	return New(genericWallet, storage, txConverter, map[string]crypto.Verifier{"test": verifier})
 }

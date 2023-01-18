@@ -436,11 +436,12 @@ func TestAddProofRequest_Ok(t *testing.T) {
 		TargetValue: txValue,
 		NewBearer:   script.PredicatePayToPublicKeyHashDefault(hash.Sum256(pubkey)),
 	}))
-	gtx, _ := backend.MoneyTxConverter.ConvertTx(tx)
+	txConverter := backend.NewTxConverter(moneySystemID)
+	gtx, _ := txConverter.ConvertTx(tx)
 	txHash := gtx.Hash(crypto.SHA256)
 	proof, verifiers := createProofForTx(t, tx)
 	store, _ := createTestBillStore(t)
-	service := New(nil, store, verifiers)
+	service := New(nil, store, txConverter, verifiers)
 	_ = service.AddKey(pubkey)
 	port := startServer(t, service)
 
@@ -484,12 +485,13 @@ func TestAddProofRequest_UnindexedKey_NOK(t *testing.T) {
 	tx := testtransaction.NewTransaction(t, testtransaction.WithAttributes(&moneytx.TransferOrder{
 		TargetValue: txValue,
 	}))
-	gtx, _ := backend.MoneyTxConverter.ConvertTx(tx)
+	txConverter := backend.NewTxConverter(moneySystemID)
+	gtx, _ := txConverter.ConvertTx(tx)
 	txHash := gtx.Hash(crypto.SHA256)
 	proof, verifiers := createProofForTx(t, tx)
 
 	store, _ := createTestBillStore(t)
-	service := New(nil, store, verifiers)
+	service := New(nil, store, txConverter, verifiers)
 	port := startServer(t, service)
 
 	pubkey := make([]byte, 33)
@@ -522,13 +524,14 @@ func TestAddProofRequest_InvalidPredicate_NOK(t *testing.T) {
 		TargetValue: txValue,
 		NewBearer:   script.PredicatePayToPublicKeyHashDefault(hash.Sum256([]byte("invalid pub key"))),
 	}))
-	gtx, _ := backend.MoneyTxConverter.ConvertTx(tx)
+	txConverter := backend.NewTxConverter(moneySystemID)
+	gtx, _ := txConverter.ConvertTx(tx)
 	txHash := gtx.Hash(crypto.SHA256)
 	proof, verifiers := createProofForTx(t, tx)
 
 	pubkey := make([]byte, 33)
 	store, _ := createTestBillStore(t)
-	service := New(nil, store, verifiers)
+	service := New(nil, store, txConverter, verifiers)
 	_ = service.AddKey(pubkey)
 	port := startServer(t, service)
 
@@ -562,11 +565,12 @@ func TestAddDCBillProofRequest_Ok(t *testing.T) {
 		TargetValue:  txValue,
 		TargetBearer: script.PredicatePayToPublicKeyHashDefault(hash.Sum256(pubkey)),
 	}))
-	gtx, _ := backend.MoneyTxConverter.ConvertTx(tx)
+	txConverter := backend.NewTxConverter(moneySystemID)
+	gtx, _ := txConverter.ConvertTx(tx)
 	txHash := gtx.Hash(crypto.SHA256)
 	proof, verifiers := createProofForTx(t, tx)
 	store, _ := createTestBillStore(t)
-	service := New(nil, store, verifiers)
+	service := New(nil, store, txConverter, verifiers)
 	_ = service.AddKey(pubkey)
 	port := startServer(t, service)
 
@@ -609,13 +613,14 @@ func TestAddDCBillProofRequest_Ok(t *testing.T) {
 
 func createProofForTx(t *testing.T, tx *txsystem.Transaction) (*block.BlockProof, map[string]abcrypto.Verifier) {
 	b := &block.Block{
-		SystemIdentifier:   backend.MoneySystemID,
+		SystemIdentifier:   moneySystemID,
 		PreviousBlockHash:  hash.Sum256([]byte{}),
 		Transactions:       []*txsystem.Transaction{tx},
 		UnicityCertificate: &certificates.UnicityCertificate{InputRecord: &certificates.InputRecord{RoundNumber: 1}},
 	}
-	b, verifiers := testblock.CertifyBlock(t, b, backend.MoneyTxConverter)
-	genericBlock, _ := b.ToGenericBlock(backend.MoneyTxConverter)
+	txConverter := backend.NewTxConverter(moneySystemID)
+	b, verifiers := testblock.CertifyBlock(t, b, txConverter)
+	genericBlock, _ := b.ToGenericBlock(txConverter)
 	proof, _ := block.NewPrimaryProof(genericBlock, tx.UnitId, crypto.SHA256)
 	return proof, verifiers
 }
