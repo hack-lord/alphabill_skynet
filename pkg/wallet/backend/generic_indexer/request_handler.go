@@ -88,12 +88,7 @@ func (s *RequestHandler) listBillsFunc(w http.ResponseWriter, r *http.Request) {
 	pk, err := parsePubKeyQueryParam(r)
 	if err != nil {
 		wlog.Debug("error parsing GET /list-bills request: ", err)
-		w.WriteHeader(http.StatusBadRequest)
-		if errors.Is(err, errMissingPubKeyQueryParam) || errors.Is(err, errInvalidPubKeyLength) {
-			writeAsJson(w, ErrorResponse{Message: err.Error()})
-		} else {
-			writeAsJson(w, ErrorResponse{Message: "invalid pubkey format"})
-		}
+		s.handlePubKeyNotFoundError(w, err)
 		return
 	}
 	bills, err := s.Service.GetBills(pk)
