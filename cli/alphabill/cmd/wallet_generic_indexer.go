@@ -13,6 +13,7 @@ import (
 	"github.com/alphabill-org/alphabill/pkg/wallet"
 	backend "github.com/alphabill-org/alphabill/pkg/wallet/backend/generic_indexer"
 	wlog "github.com/alphabill-org/alphabill/pkg/wallet/log"
+	"github.com/alphabill-org/alphabill/pkg/wallet/money"
 	"github.com/spf13/cobra"
 )
 
@@ -92,7 +93,7 @@ func execGenericIndexerStartCmd(ctx context.Context, _ *cobra.Command, config *g
 	if err != nil {
 		return err
 	}
-	bp := backend.NewBlockProcessor(store)
+	bp := backend.NewBlockProcessor(store, money.NewTxConverter(defaultABMoneySystemIdentifier))
 	w := wallet.New().SetBlockProcessor(bp).SetABClient(abclient).Build()
 
 	service := backend.New(w, store)

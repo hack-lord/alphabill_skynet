@@ -16,6 +16,7 @@ import (
 	"github.com/alphabill-org/alphabill/pkg/wallet"
 	backend "github.com/alphabill-org/alphabill/pkg/wallet/backend/pubkey_indexer"
 	wlog "github.com/alphabill-org/alphabill/pkg/wallet/log"
+	"github.com/alphabill-org/alphabill/pkg/wallet/money"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/spf13/cobra"
 )
@@ -151,10 +152,11 @@ func execStartCmd(ctx context.Context, _ *cobra.Command, config *pubkeyIndexerCo
 			return err
 		}
 	}
-	bp := backend.NewBlockProcessor(store)
+	txConverter := money.NewTxConverter(defaultABMoneySystemIdentifier)
+	bp := backend.NewBlockProcessor(store, txConverter)
 	w := wallet.New().SetBlockProcessor(bp).SetABClient(abclient).Build()
 
-	service := backend.New(w, store, verifiers)
+	service := backend.New(w, store, txConverter, verifiers)
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
