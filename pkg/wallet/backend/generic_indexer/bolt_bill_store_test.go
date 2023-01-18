@@ -1,7 +1,7 @@
 package generic_indexer
 
 import (
-	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/alphabill-org/alphabill/internal/hash"
@@ -178,7 +178,7 @@ func TestBillStore_DeleteExpiredBills(t *testing.T) {
 }
 
 func createTestBillStore(t *testing.T) (*BoltBillStore, error) {
-	dbFile := path.Join(t.TempDir(), BoltBillStoreFileName)
+	dbFile := filepath.Join(t.TempDir(), BoltBillStoreFileName)
 	return NewBoltBillStore(dbFile)
 }
 

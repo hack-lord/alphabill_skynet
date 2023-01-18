@@ -118,12 +118,7 @@ func (s *RequestHandler) balanceFunc(w http.ResponseWriter, r *http.Request) {
 	pk, err := parsePubKeyQueryParam(r)
 	if err != nil {
 		wlog.Debug("error parsing GET /balance request: ", err)
-		w.WriteHeader(http.StatusBadRequest)
-		if errors.Is(err, errMissingPubKeyQueryParam) || errors.Is(err, errInvalidPubKeyLength) {
-			writeAsJson(w, ErrorResponse{Message: err.Error()})
-		} else {
-			writeAsJson(w, ErrorResponse{Message: "invalid pubkey format"})
-		}
+		s.handlePubKeyNotFoundError(w, err)
 		return
 	}
 	bills, err := s.Service.GetBills(pk)
@@ -132,7 +127,7 @@ func (s *RequestHandler) balanceFunc(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	sum := uint64(0)
+	var sum uint64
 	for _, b := range bills {
 		if !b.IsDCBill {
 			sum += b.Value
@@ -173,6 +168,15 @@ func (s *RequestHandler) parsePubkeyURLParam(r *http.Request) ([]byte, error) {
 	vars := mux.Vars(r)
 	pubkeyParam := vars["pubkey"]
 	return parsePubKey(pubkeyParam)
+}
+
+func (s *RequestHandler) handlePubKeyNotFoundError(w http.ResponseWriter, err error) {
+	w.WriteHeader(http.StatusBadRequest)
+	if errors.Is(err, errMissingPubKeyQueryParam) || errors.Is(err, errInvalidPubKeyLength) {
+		writeAsJson(w, ErrorResponse{Message: err.Error()})
+	} else {
+		writeAsJson(w, ErrorResponse{Message: "invalid pubkey format"})
+	}
 }
 
 func (s *RequestHandler) readBillsProto(r *http.Request) (*moneytx.Bills, error) {
@@ -278,9 +282,6 @@ func decodeBillIdHex(billID string) ([]byte, error) {
 }
 
 func parseInt(str string, def int) int {
-	if str == "" {
-		return def
-	}
 	num, err := strconv.Atoi(str)
 	if err != nil {
 		return def

@@ -53,8 +53,7 @@ func (p *BlockProcessor) processTx(txPb *txsystem.Transaction, b *block.Block, d
 	if err != nil {
 		return err
 	}
-	stx := gtx.(txsystem.GenericTransaction)
-	switch tx := stx.(type) {
+	switch tx := gtx.(type) {
 	case moneytx.Transfer:
 		wlog.Info(fmt.Sprintf("received transfer order (UnitID=%x)", txPb.UnitId))
 		err = p.saveBillWithProof(b, txPb, dbTx, &Bill{
