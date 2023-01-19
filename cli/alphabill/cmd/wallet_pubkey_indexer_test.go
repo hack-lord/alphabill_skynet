@@ -14,7 +14,7 @@ import (
 	testpartition "github.com/alphabill-org/alphabill/internal/testutils/partition"
 	moneytx "github.com/alphabill-org/alphabill/internal/txsystem/money"
 	"github.com/alphabill-org/alphabill/internal/util"
-	"github.com/alphabill-org/alphabill/pkg/wallet/backend"
+	backend "github.com/alphabill-org/alphabill/pkg/wallet/backend/pubkey_indexer"
 	wlog "github.com/alphabill-org/alphabill/pkg/wallet/log"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/holiman/uint256"
@@ -55,7 +55,7 @@ func TestWalletBackendCli(t *testing.T) {
 	consoleWriter = &testConsoleWriter{}
 	go func() {
 		cmd := New()
-		args := fmt.Sprintf("wallet-backend --home %s start --server-addr %s --pubkeys %s --trust-base-file %s", homedir, serverAddr, pubkeyHex, trustBaseFilePath)
+		args := fmt.Sprintf("pubkey-indexer --home %s start --server-addr %s --pubkeys %s --trust-base-file %s", homedir, serverAddr, pubkeyHex, trustBaseFilePath)
 		cmd.baseCmd.SetArgs(strings.Split(args, " "))
 
 		ctx, cancelFunc := context.WithCancel(context.Background())
@@ -92,14 +92,14 @@ func TestWalletBackendCli(t *testing.T) {
 }
 
 /*
- Test case:
- 1) send initial bill to wallet key 1
- 2) export bill from wallet
- 3) index key 1 in wallet-backend
- 4) import bill to wallet-backend
- 5) verify list-bills shows imported bill
- 6) download proof from wallet-backend
- 7) import downloaded proof to a new wallet
+Test case:
+1) send initial bill to wallet key 1
+2) export bill from wallet
+3) index key 1 in wallet-backend
+4) import bill to wallet-backend
+5) verify list-bills shows imported bill
+6) download proof from wallet-backend
+7) import downloaded proof to a new wallet
 */
 func TestFlowBillImportExportDownloadUpload(t *testing.T) {
 	// create ab network
@@ -130,7 +130,7 @@ func TestFlowBillImportExportDownloadUpload(t *testing.T) {
 	consoleWriter = &testConsoleWriter{}
 	go func() {
 		cmd := New()
-		args := fmt.Sprintf("wallet-backend --home %s start --server-addr %s --trust-base-file %s", backendHomedir, serverAddr, trustBaseFilePath)
+		args := fmt.Sprintf("pubkey-indexer --home %s start --server-addr %s --trust-base-file %s", backendHomedir, serverAddr, trustBaseFilePath)
 		cmd.baseCmd.SetArgs(strings.Split(args, " "))
 
 		ctx, cancelFunc := context.WithCancel(context.Background())

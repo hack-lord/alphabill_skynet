@@ -1,4 +1,4 @@
-package backend
+package pubkey_indexer
 
 import (
 	"context"
@@ -14,8 +14,6 @@ import (
 	txverifier "github.com/alphabill-org/alphabill/pkg/wallet/money/tx_verifier"
 )
 
-var alphabillMoneySystemId = []byte{0, 0, 0, 0}
-
 var (
 	errKeyNotIndexed  = errors.New("pubkey is not indexed")
 	errBillsIsNil     = errors.New("bills input is empty")
@@ -26,6 +24,7 @@ type (
 	WalletBackend struct {
 		store         BillStore
 		genericWallet *wallet.Wallet
+		txConverter   TxConverter
 		verifiers     map[string]abcrypto.Verifier
 		cancelSyncCh  chan bool
 	}
@@ -69,12 +68,22 @@ type (
 		GetKey(pubkey []byte) (*Pubkey, error)
 		AddKey(key *Pubkey) error
 	}
+
+	TxConverter interface {
+		ConvertTx(tx *txsystem.Transaction) (txsystem.GenericTransaction, error)
+	}
 )
 
 // New creates a new wallet backend service which can be started by calling the Start or StartProcess method.
 // Shutdown method should be called to close resources used by the service.
-func New(wallet *wallet.Wallet, store BillStore, verifiers map[string]abcrypto.Verifier) *WalletBackend {
-	return &WalletBackend{store: store, genericWallet: wallet, verifiers: verifiers, cancelSyncCh: make(chan bool, 1)}
+func New(wallet *wallet.Wallet, store BillStore, txConverter TxConverter, verifiers map[string]abcrypto.Verifier) *WalletBackend {
+	return &WalletBackend{
+		store:         store,
+		genericWallet: wallet,
+		txConverter:   txConverter,
+		verifiers:     verifiers,
+		cancelSyncCh:  make(chan bool, 1),
+	}
 }
 
 // NewPubkey creates a new hashed Pubkey
@@ -136,7 +145,7 @@ func (w *WalletBackend) SetBills(pubkey []byte, bills *moneytx.Bills) error {
 	if len(bills.Bills) == 0 {
 		return errEmptyBillsList
 	}
-	err := bills.Verify(txConverter, w.verifiers)
+	err := bills.Verify(w.txConverter, w.verifiers)
 	if err != nil {
 		return err
 	}
@@ -150,7 +159,7 @@ func (w *WalletBackend) SetBills(pubkey []byte, bills *moneytx.Bills) error {
 	pubkeyHash := wallet.NewKeyHash(pubkey)
 	domainBills := newBillsFromProto(bills)
 	for _, bill := range domainBills {
-		tx, err := txConverter.ConvertTx(bill.TxProof.Tx)
+		tx, err := w.txConverter.ConvertTx(bill.TxProof.Tx)
 		if err != nil {
 			return err
 		}
