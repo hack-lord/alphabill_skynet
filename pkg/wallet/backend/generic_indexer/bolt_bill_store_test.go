@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
+	bolt "go.etcd.io/bbolt"
 )
 
 func TestBillStore_CanBeCreated(t *testing.T) {
@@ -162,19 +163,19 @@ func TestBillStore_DeleteExpiredBills(t *testing.T) {
 	// when expiration time is reached
 	err := s.Do().DeleteExpiredBills(expirationBlockNo)
 	require.NoError(t, err)
-	//
-	//// then expired bills should be deleted
-	//bills, err := s.Do().GetBills(bearer)
-	//require.NoError(t, err)
-	//require.Len(t, bills, 0)
-	//
-	//// and metadata should also be deleted
-	//err = s.db.View(func(tx *bolt.Tx) error {
-	//	b := tx.Bucket(expiredBillsBucket).Get(util.Uint64ToBytes(expirationBlockNo))
-	//	require.Nil(t, b)
-	//	return nil
-	//})
-	//require.NoError(t, err)
+
+	// then expired bills should be deleted
+	bills, err := s.Do().GetBills(bearer)
+	require.NoError(t, err)
+	require.Len(t, bills, 0)
+
+	// and metadata should also be deleted
+	err = s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(expiredBillsBucket).Get(util.Uint64ToBytes(expirationBlockNo))
+		require.Nil(t, b)
+		return nil
+	})
+	require.NoError(t, err)
 }
 
 func createTestBillStore(t *testing.T) (*BoltBillStore, error) {

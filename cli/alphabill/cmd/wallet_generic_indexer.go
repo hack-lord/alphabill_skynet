@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path"
+	"path/filepath"
 	"sync"
 	"syscall"
 
@@ -35,12 +35,12 @@ func (c *genericIndexerConfig) GetDbFile() (string, error) {
 	if c.DbFile != "" {
 		return c.DbFile, nil
 	}
-	indexerHomeDir := path.Join(c.Base.HomeDir, genericIndexerHomeDir)
+	indexerHomeDir := filepath.Join(c.Base.HomeDir, genericIndexerHomeDir)
 	err := os.MkdirAll(indexerHomeDir, 0700) // -rwx------
 	if err != nil {
 		return "", err
 	}
-	return path.Join(indexerHomeDir, backend.BoltBillStoreFileName), nil
+	return filepath.Join(indexerHomeDir, backend.BoltBillStoreFileName), nil
 }
 
 // newGenericIndexerCmd creates a new cobra command for the generic-indexer component.
