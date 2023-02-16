@@ -312,7 +312,7 @@ func Test_GetTokens(t *testing.T) {
 	})
 
 	t.Run("data in the response", func(t *testing.T) {
-		expData := []twb.TokenUnit{{ID: []byte{0, 1}, Symbol: "test", Amount: 42}}
+		expData := []twb.TokenUnit{{ID: []byte{0, 1}, Kind: twb.Fungible, Symbol: "test", Amount: 42}}
 		cli := createClient(t, expData)
 		data, offset, err := cli.GetTokens(context.Background(), twb.Any, ownerID, "", 20)
 		require.NoError(t, err)
@@ -378,7 +378,7 @@ func Test_GetTokenTypes(t *testing.T) {
 	})
 
 	t.Run("data in the response", func(t *testing.T) {
-		expData := []twb.TokenUnitType{{ID: []byte{0, 1}, Symbol: "test"}}
+		expData := []twb.TokenUnitType{{ID: []byte{0, 1}, Kind: twb.Fungible, Symbol: "test"}}
 		cli := createClient(t, expData)
 		data, offset, err := cli.GetTokenTypes(context.Background(), twb.Any, ownerID, "", 20)
 		require.NoError(t, err)

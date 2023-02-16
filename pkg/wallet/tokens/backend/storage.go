@@ -1,6 +1,7 @@
 package twb
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/alphabill-org/alphabill/internal/block"
@@ -27,37 +28,37 @@ type (
 type (
 	TokenUnitType struct {
 		// common
-		ID                       TokenTypeID `json:"id"`
-		ParentTypeID             TokenTypeID `json:"parentTypeId"`
-		Symbol                   string      `json:"symbol"`
-		SubTypeCreationPredicate Predicate   `json:"subTypeCreationPredicate,omitempty"`
-		TokenCreationPredicate   Predicate   `json:"tokenCreationPredicate,omitempty"`
-		InvariantPredicate       Predicate   `json:"invariantPredicate,omitempty"`
+		ID                       TokenTypeID
+		ParentTypeID             TokenTypeID
+		Symbol                   string
+		SubTypeCreationPredicate Predicate
+		TokenCreationPredicate   Predicate
+		InvariantPredicate       Predicate
 		// fungible only
-		DecimalPlaces uint32 `json:"decimalPlaces"`
+		DecimalPlaces uint32
 		// nft only
-		NftDataUpdatePredicate Predicate `json:"nftDataUpdatePredicate,omitempty"`
+		NftDataUpdatePredicate Predicate
 		// meta
-		Kind   Kind   `json:"kind"`
-		TxHash []byte `json:"txHash"`
+		Kind   Kind
+		TxHash []byte
 	}
 
 	TokenUnit struct {
 		// common
-		ID     TokenID     `json:"id"`
-		Symbol string      `json:"symbol"`
-		TypeID TokenTypeID `json:"typeId"`
-		Owner  Predicate   `json:"owner"`
+		ID     TokenID
+		Symbol string
+		TypeID TokenTypeID
+		Owner  Predicate
 		// fungible only
-		Amount   uint64 `json:"amount"`
-		Decimals uint32 `json:"decimals"`
+		Amount   uint64
+		Decimals uint32
 		// nft only
-		NftURI                 string    `json:"nftUri,omitempty"`
-		NftData                []byte    `json:"nftData,omitempty"`
-		NftDataUpdatePredicate Predicate `json:"nftDataUpdatePredicate,omitempty"`
+		NftURI                 string
+		NftData                []byte
+		NftDataUpdatePredicate Predicate
 		// meta
-		Kind   Kind   `json:"kind"`
-		TxHash []byte `json:"txHash"`
+		Kind   Kind
+		TxHash []byte
 	}
 
 	TokenID     []byte
@@ -102,4 +103,51 @@ func strToTokenKind(s string) (Kind, error) {
 		return NonFungible, nil
 	}
 	return Any, fmt.Errorf("%q is not valid token kind", s)
+}
+
+func (tu TokenUnit) MarshalJSON() ([]byte, error) {
+	data := map[string]any{
+		"id":     tu.ID,
+		"symbol": tu.Symbol,
+		"typeId": tu.TypeID,
+		"owner":  tu.Owner,
+		"txHash": tu.TxHash,
+		"kind":   tu.Kind,
+	}
+	switch tu.Kind {
+	case NonFungible:
+		data["nftUri"] = tu.NftURI
+		data["nftData"] = tu.NftData
+		data["nftDataUpdatePredicate"] = tu.NftDataUpdatePredicate
+	case Fungible:
+		data["amount"] = tu.Amount
+		data["decimals"] = tu.Decimals
+	default:
+		return nil, fmt.Errorf("unsupported token kind %d", tu.Kind)
+	}
+
+	return json.Marshal(data)
+}
+
+func (tt TokenUnitType) MarshalJSON() ([]byte, error) {
+	data := map[string]any{
+		"id":                       tt.ID,
+		"parentTypeId":             tt.ParentTypeID,
+		"symbol":                   tt.Symbol,
+		"subTypeCreationPredicate": tt.SubTypeCreationPredicate,
+		"tokenCreationPredicate":   tt.TokenCreationPredicate,
+		"invariantPredicate":       tt.InvariantPredicate,
+		"txHash":                   tt.TxHash,
+		"kind":                     tt.Kind,
+	}
+	switch tt.Kind {
+	case NonFungible:
+		data["nftDataUpdatePredicate"] = tt.NftDataUpdatePredicate
+	case Fungible:
+		data["decimalPlaces"] = tt.DecimalPlaces
+	default:
+		return nil, fmt.Errorf("unsupported token kind %d", tt.Kind)
+	}
+
+	return json.Marshal(data)
 }

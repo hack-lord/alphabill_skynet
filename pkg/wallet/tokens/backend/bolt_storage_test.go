@@ -50,25 +50,18 @@ func testTokenTypeCreator(t *testing.T, db *storage) {
 
 func testTokenType(t *testing.T, db *storage) {
 	proof := &Proof{BlockNumber: 1}
-	typeUnit := &TokenUnitType{
-		ID:                       test.RandomBytes(32),
-		ParentTypeID:             test.RandomBytes(32),
-		Symbol:                   "AB",
-		SubTypeCreationPredicate: test.RandomBytes(32),
-		TokenCreationPredicate:   test.RandomBytes(32),
-		InvariantPredicate:       test.RandomBytes(32),
-		DecimalPlaces:            8,
-		NftDataUpdatePredicate:   test.RandomBytes(32),
-		Kind:                     Fungible,
-		TxHash:                   test.RandomBytes(32),
-	}
+	typeUnit := randomTokenType(Fungible)
+
+	// token kind must be assigned
+	err := db.SaveTokenType(&TokenUnitType{}, proof)
+	require.EqualError(t, err, `failed to serialize token type data: json: error calling MarshalJSON for type *twb.TokenUnitType: unsupported token kind 0`)
 
 	// ID (used as db key) must be assigned
-	err := db.SaveTokenType(&TokenUnitType{}, proof)
+	err = db.SaveTokenType(&TokenUnitType{Kind: Fungible}, proof)
 	require.EqualError(t, err, `failed to save token type data: key required`)
 
 	// TxHash must be assigned
-	err = db.SaveTokenType(&TokenUnitType{ID: test.RandomBytes(32)}, proof)
+	err = db.SaveTokenType(&TokenUnitType{ID: test.RandomBytes(32), Kind: NonFungible}, proof)
 	require.EqualError(t, err, `failed to store unit block proof: key required`)
 
 	// empty db, shouldn't find anything
@@ -150,20 +143,6 @@ func testBlockNumber(t *testing.T, db *storage) {
 func Test_storage_QueryTokenType(t *testing.T) {
 	t.Parallel()
 
-	randomTokenType := func(kind Kind) *TokenUnitType {
-		return &TokenUnitType{
-			ID:                       test.RandomBytes(32),
-			ParentTypeID:             test.RandomBytes(32),
-			Symbol:                   "AB",
-			SubTypeCreationPredicate: test.RandomBytes(32),
-			TokenCreationPredicate:   test.RandomBytes(32),
-			InvariantPredicate:       test.RandomBytes(32),
-			DecimalPlaces:            8,
-			NftDataUpdatePredicate:   test.RandomBytes(32),
-			Kind:                     kind,
-			TxHash:                   test.RandomBytes(32),
-		}
-	}
 	proof := &Proof{BlockNumber: 1}
 	ctorA := test.RandomBytes(32)
 
@@ -334,19 +313,44 @@ func Test_storage_QueryTokens(t *testing.T) {
 }
 
 func randomToken(owner Predicate, kind Kind) *TokenUnit {
-	return &TokenUnit{
-		ID:                     test.RandomBytes(32),
-		Symbol:                 "AB",
-		TypeID:                 test.RandomBytes(32),
-		Owner:                  owner,
-		Amount:                 100,
-		Decimals:               8,
-		NftURI:                 "https://alphabill.org",
-		NftData:                test.RandomBytes(32),
-		NftDataUpdatePredicate: test.RandomBytes(32),
-		Kind:                   kind,
-		TxHash:                 test.RandomBytes(32),
+	tu := &TokenUnit{
+		ID:     test.RandomBytes(32),
+		Symbol: "AB",
+		TypeID: test.RandomBytes(32),
+		Owner:  owner,
+		Kind:   kind,
+		TxHash: test.RandomBytes(32),
 	}
+	switch kind {
+	case Fungible:
+		tu.Amount = 100
+		tu.Decimals = 8
+	case NonFungible:
+		tu.NftURI = "https://alphabill.org"
+		tu.NftData = test.RandomBytes(32)
+		tu.NftDataUpdatePredicate = test.RandomBytes(32)
+	}
+	return tu
+}
+
+func randomTokenType(kind Kind) *TokenUnitType {
+	tt := &TokenUnitType{
+		ID:                       test.RandomBytes(32),
+		ParentTypeID:             test.RandomBytes(32),
+		Symbol:                   "AB",
+		SubTypeCreationPredicate: test.RandomBytes(32),
+		TokenCreationPredicate:   test.RandomBytes(32),
+		InvariantPredicate:       test.RandomBytes(32),
+		Kind:                     kind,
+		TxHash:                   test.RandomBytes(32),
+	}
+	switch kind {
+	case Fungible:
+		tt.DecimalPlaces = 8
+	case NonFungible:
+		tt.NftDataUpdatePredicate = test.RandomBytes(32)
+	}
+	return tt
 }
 
 func initTestStorage(t *testing.T) *storage {
