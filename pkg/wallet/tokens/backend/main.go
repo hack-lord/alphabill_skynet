@@ -153,7 +153,7 @@ func (c *cfg) HttpServer(endpoints http.Handler) http.Server {
 		Handler:           endpoints,
 		ReadTimeout:       3 * time.Second,
 		ReadHeaderTimeout: time.Second,
-		WriteTimeout:      5 * time.Second,
-		IdleTimeout:       30 * time.Second,
+		//WriteTimeout:      5 * time.Second,
+		//IdleTimeout:       30 * time.Second,
 	}
 }
