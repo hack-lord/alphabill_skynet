@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"context"
 	"errors"
+	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -55,17 +55,17 @@ func regCmd(wait *bool) *cobra.Command {
 				return errors.New("'hash' and 'file' flags are mutually exclusive")
 			}
 
-			vdClient, err := initVDClient(cmd.Context(), cmd, wait, sync)
+			vdClient, err := initVDClient(cmd, wait, sync)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to init VD client: %w", err)
 			}
 
 			if hash != "" {
-				err = vdClient.RegisterHash(hash)
+				return vdClient.RegisterHash(cmd.Context(), hash)
 			} else if file != "" {
-				err = vdClient.RegisterFileHash(file)
+				return vdClient.RegisterFileHash(cmd.Context(), file)
 			}
-			return err
+			return nil
 		},
 	}
 	cmd.Flags().StringP("hash", "d", "", "register data hash (hex with or without 0x prefix)")
@@ -81,21 +81,18 @@ func listBlocksCmd(wait *bool) *cobra.Command {
 		Use:   "list-blocks",
 		Short: "prints all non-empty blocks from the ledger",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			vdClient, err := initVDClient(cmd.Context(), cmd, wait, false)
+			vdClient, err := initVDClient(cmd, wait, false)
 			if err != nil {
 				return err
 			}
 
-			if err = vdClient.ListAllBlocksWithTx(); err != nil {
-				return err
-			}
-			return nil
+			return vdClient.ListAllBlocksWithTx(cmd.Context())
 		},
 	}
 	return cmd
 }
 
-func initVDClient(ctx context.Context, cmd *cobra.Command, wait *bool, sync bool) (*vd.VDClient, error) {
+func initVDClient(cmd *cobra.Command, wait *bool, sync bool) (*vd.VDClient, error) {
 	uri, err := cmd.Flags().GetString(alphabillNodeURLCmdName)
 	if err != nil {
 		return nil, err
@@ -106,7 +103,7 @@ func initVDClient(ctx context.Context, cmd *cobra.Command, wait *bool, sync bool
 		return nil, err
 	}
 
-	vdClient, err := vd.New(ctx, &vd.VDClientConfig{
+	vdClient, err := vd.New(&vd.VDClientConfig{
 		AbConf: &client.AlphabillClientConfig{
 			Uri:          uri,
 			WaitForReady: *wait,

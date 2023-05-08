@@ -345,7 +345,8 @@ func TestCollectDustInMultiAccountWalletWithKeyFlag(t *testing.T) {
 	require.NoError(t, err)
 
 	// verify that there is only one swap tx and it belongs to account number 3
-	b, _ := network.Nodes[0].GetLatestBlock()
+	b, err := network.Nodes[0].GetLatestBlock(ctx)
+	require.NoError(t, err)
 	require.Len(t, b.Transactions, 1)
 	attrs := &moneytx.SwapDCAttributes{}
 	err = b.Transactions[0].TransactionAttributes.UnmarshalTo(attrs)

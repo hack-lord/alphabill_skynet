@@ -23,7 +23,6 @@ type (
 		// synchronizes with ledger until the block is found where tx has been added to
 		syncToBlock   bool
 		timeoutDelta  uint64
-		ctx           context.Context
 		blockCallback func(b *VDBlock)
 	}
 
@@ -47,9 +46,8 @@ func (block *VDBlock) GetBlockNumber() uint64 {
 	return block.blockNumber
 }
 
-func New(ctx context.Context, conf *VDClientConfig) (*VDClient, error) {
+func New(conf *VDClientConfig) (*VDClient, error) {
 	return &VDClient{
-		ctx:           ctx,
 		abClient:      client.New(*conf.AbConf),
 		syncToBlock:   conf.WaitBlock,
 		timeoutDelta:  conf.BlockTimeout,
@@ -63,7 +61,7 @@ func (v *VDClient) SystemID() []byte {
 	return []byte{0, 0, 0, 1}
 }
 
-func (v *VDClient) RegisterFileHash(filePath string) error {
+func (v *VDClient) RegisterFileHash(ctx context.Context, filePath string) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to open the file %q: %w", filePath, err)
@@ -77,36 +75,35 @@ func (v *VDClient) RegisterFileHash(filePath string) error {
 
 	hash := hasher.Sum(nil)
 	log.Debug("Hash of file '", filePath, "': ", hash)
-	return v.registerHashTx(context.Background(), hash)
+	return v.registerHashTx(ctx, hash)
 }
 
 func (v *VDClient) RegisterHashBytes(bytes []byte) error {
 	return v.registerHashTx(context.Background(), bytes)
 }
 
-func (v *VDClient) RegisterHash(hash string) error {
+func (v *VDClient) RegisterHash(ctx context.Context, hash string) error {
 	b, err := hexStringToBytes(hash)
 	if err != nil {
 		return err
 	}
-	return v.registerHashTx(context.Background(), b)
+	return v.registerHashTx(ctx, b)
 }
 
 // FetchBlockWithHash is a temporary workaround for verifying registered hash values.
-func (v *VDClient) FetchBlockWithHash(hash []byte, blockNumber uint64) error {
-	return v.sync(blockNumber-1, blockNumber, hash)
+func (v *VDClient) FetchBlockWithHash(ctx context.Context, hash []byte, blockNumber uint64) error {
+	return v.sync(ctx, blockNumber-1, blockNumber, hash)
 }
 
 // ListAllBlocksWithTx prints all non-empty blocks from genesis up to the latest block
-func (v *VDClient) ListAllBlocksWithTx() error {
-	defer v.shutdown()
+func (v *VDClient) ListAllBlocksWithTx(ctx context.Context) error {
 	log.Info("Fetching blocks...")
-	maxBlockNumber, err := v.abClient.GetRoundNumber(context.Background())
+	maxBlockNumber, err := v.abClient.GetRoundNumber(ctx)
 	if err != nil {
 		return err
 	}
 	log.Debug("Max block: #", maxBlockNumber)
-	if err := v.sync(0, maxBlockNumber, nil); err != nil {
+	if err := v.sync(ctx, 0, maxBlockNumber, nil); err != nil {
 		return err
 	}
 
@@ -115,15 +112,13 @@ func (v *VDClient) ListAllBlocksWithTx() error {
 }
 
 func (v *VDClient) registerHashTx(ctx context.Context, hash []byte) error {
-	defer v.shutdown()
-
 	if err := validateHash(hash); err != nil {
 		return err
 	}
 
 	currentRoundNumber, err := v.abClient.GetRoundNumber(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get current round number: %w", err)
 	}
 
 	log.Info("Current block #: ", currentRoundNumber)
@@ -139,15 +134,15 @@ func (v *VDClient) registerHashTx(ctx context.Context, hash []byte) error {
 	log.Info("Hash successfully submitted, timeout block: ", timeout)
 
 	if v.syncToBlock {
-		return v.sync(currentRoundNumber, timeout, hash)
+		return v.sync(ctx, currentRoundNumber, timeout, hash)
 	}
 	return nil
 }
 
-func (v *VDClient) sync(currentBlock uint64, timeout uint64, hash []byte) error {
+func (v *VDClient) sync(ctx context.Context, currentBlock uint64, timeout uint64, hash []byte) error {
 	wallet := wallet.New().SetABClient(v.abClient).Build()
 
-	ctx, cancel := context.WithCancel(v.ctx)
+	ctx, cancel := context.WithCancel(ctx)
 	syncDone := func() {
 		cancel()
 		wallet.Shutdown()

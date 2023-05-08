@@ -26,7 +26,6 @@ func TestVD_UseClientForTx(t *testing.T) {
 	testtime.MustRunInTime(t, 20*time.Second, func() {
 		freePort, err := net.GetFreePort()
 		require.NoError(t, err)
-		listenAddr := fmt.Sprintf(":%v", freePort) // listen is on all devices, so it would work in CI inside docker too.
 		dialAddr := fmt.Sprintf("localhost:%v", freePort)
 
 		appStoppedWg := sync.WaitGroup{}
@@ -36,8 +35,7 @@ func TestVD_UseClientForTx(t *testing.T) {
 		cmd := New()
 		args := "vd-genesis --home " + homeDirVD + " -o " + nodeGenesisFileLocation + " -g -k " + keysFileLocation
 		cmd.baseCmd.SetArgs(strings.Split(args, " "))
-		err = cmd.addAndExecuteCommand(context.Background())
-		require.NoError(t, err)
+		require.NoError(t, cmd.addAndExecuteCommand(ctx))
 
 		pn, err := util.ReadJsonFile(nodeGenesisFileLocation, &genesis.PartitionNode{})
 		require.NoError(t, err)
@@ -59,7 +57,7 @@ func TestVD_UseClientForTx(t *testing.T) {
 		go func() {
 			fmt.Println("Starting VD node")
 			cmd := New()
-			args := "vd --home " + homeDirVD + " -g " + partitionGenesisFileLocation + " -k " + keysFileLocation + " --server-address " + listenAddr
+			args := "vd --home " + homeDirVD + " -g " + partitionGenesisFileLocation + " -k " + keysFileLocation + " --server-address " + dialAddr
 			cmd.baseCmd.SetArgs(strings.Split(args, " "))
 
 			err := cmd.addAndExecuteCommand(ctx)
@@ -67,26 +65,12 @@ func TestVD_UseClientForTx(t *testing.T) {
 			appStoppedWg.Done()
 		}()
 
-		fmt.Println("Starting VD clients")
-		// Start VD Client
-		require.NoError(t, sendTxWithClient(ctx, dialAddr))
-
-		// failing case, send same stuff once again
 		err = sendTxWithClient(ctx, dialAddr)
-		// There are two cases, then second 'register tx' gets rejected:
-		if err != nil {
-			// first, when both txs end up in the same block, this error is propagated here:
-			fmt.Println("second tx rejected from the buffer")
-			require.ErrorContains(t, err, "tx already in tx buffer")
-		} else {
-			// second, if the first tx has been processed, the second tx is rejected,
-			// but the error is only printed to the log and not propagated back here (TODO)
-			fmt.Println("second tx rejected, but error not propagated")
-		}
+		// as the rootchain is not running the partition node never gets past the initializing status
+		require.EqualError(t, err, `failed to get current round number: rpc error: code = Unavailable desc = invalid state: partition node status is "initializing"`)
 
 		// Close the app
 		ctxCancel()
-		fmt.Println("Sent context cancel")
 		// Wait for test asserts to be completed
 		appStoppedWg.Wait()
 	})

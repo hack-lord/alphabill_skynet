@@ -61,7 +61,7 @@ func TestRunTokensNode(t *testing.T) {
 		err = util.WriteJsonFile(partitionGenesisFileLocation, partitionGenesisFiles[0])
 		require.NoError(t, err)
 
-		listenAddr := fmt.Sprintf(":%d", net.GetFreeRandomPort(t))
+		listenAddr := fmt.Sprintf("localhost:%d", net.GetFreeRandomPort(t))
 
 		// start the node in background
 		appStoppedWg.Add(1)
@@ -76,13 +76,12 @@ func TestRunTokensNode(t *testing.T) {
 		}()
 
 		// Create the gRPC client
-		conn, err := grpc.DialContext(ctx, "localhost"+listenAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := grpc.DialContext(ctx, listenAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		require.NoError(t, err)
 		defer conn.Close()
 		rpcClient := alphabill.NewAlphabillServiceClient(conn)
 
 		// Test
-		// green path
 		id := uint256.NewInt(rand.Uint64()).Bytes32()
 		tx := &txsystem.Transaction{
 			UnitId:                id[:],
@@ -99,12 +98,8 @@ func TestRunTokensNode(t *testing.T) {
 			DataUpdatePredicate:      script.PredicateAlwaysTrue(),
 		}))
 
+		// as the rootchain is not running the partition node never gets past the initializing status
 		_, err = rpcClient.ProcessTransaction(ctx, tx, grpc.WaitForReady(true))
-		require.NoError(t, err)
-
-		// failing case
-		tx.SystemId = []byte{1, 0, 0, 0} // incorrect system id
-		_, err = rpcClient.ProcessTransaction(ctx, tx, grpc.WaitForReady(true))
-		require.ErrorContains(t, err, "invalid transaction system identifier")
+		require.EqualError(t, err, `rpc error: code = Unavailable desc = invalid state: partition node status is "initializing"`)
 	})
 }
