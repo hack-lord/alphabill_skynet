@@ -27,13 +27,17 @@ var defaultClientMetadata = &txsystem.ClientMetadata{
 }
 
 func TestInitPartitionAndCreateNFTType_Ok(t *testing.T) {
-	network, err := testpartition.NewNetwork(3, func(trustBase map[string]crypto.Verifier) txsystem.TransactionSystem {
-		system, err := New(WithTrustBase(trustBase), WithState(newStateWithFeeCredit(t, feeCreditID)))
-		require.NoError(t, err)
-		return system
-	}, DefaultTokenTxSystemIdentifier)
+	network, err := testpartition.NewNetwork(3,
+		func(trustBase map[string]crypto.Verifier) txsystem.TransactionSystem {
+			system, err := New(WithTrustBase(trustBase), WithState(newStateWithFeeCredit(t, feeCreditID)))
+			require.NoError(t, err)
+			return system
+		},
+		DefaultTokenTxSystemIdentifier)
 	require.NoError(t, err)
 	require.NotNil(t, network)
+	t.Cleanup(func() { require.NoError(t, network.Close()) })
+
 	tx := testtransaction.NewTransaction(t,
 		testtransaction.WithSystemID(DefaultTokenTxSystemIdentifier),
 		testtransaction.WithUnitId([]byte{0, 0, 0, 1}),

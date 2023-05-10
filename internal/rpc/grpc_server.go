@@ -2,11 +2,15 @@ package rpc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/alphabill-org/alphabill/internal/block"
+	aberr "github.com/alphabill-org/alphabill/internal/errors"
 	"github.com/alphabill-org/alphabill/internal/metrics"
 	"github.com/alphabill-org/alphabill/internal/rpc/alphabill"
 	"github.com/alphabill-org/alphabill/internal/txsystem"
@@ -26,8 +30,8 @@ type (
 	partitionNode interface {
 		SubmitTx(ctx context.Context, tx *txsystem.Transaction) error
 		GetBlock(ctx context.Context, blockNr uint64) (*block.Block, error)
-		GetLatestBlock() (*block.Block, error)
-		GetLatestRoundNumber() (uint64, error)
+		GetLatestBlock(ctx context.Context) (*block.Block, error)
+		GetLatestRoundNumber(ctx context.Context) (uint64, error)
 		SystemIdentifier() []byte
 	}
 )
@@ -55,7 +59,7 @@ func (r *grpcServer) ProcessTransaction(ctx context.Context, tx *txsystem.Transa
 	receivedTransactionsGRPCMeter.Inc(1)
 	if err := r.node.SubmitTx(ctx, tx); err != nil {
 		receivedInvalidTransactionsGRPCMeter.Inc(1)
-		return nil, err
+		return nil, errorToStatus(err)
 	}
 	return &emptypb.Empty{}, nil
 }
@@ -63,30 +67,31 @@ func (r *grpcServer) ProcessTransaction(ctx context.Context, tx *txsystem.Transa
 func (r *grpcServer) GetBlock(ctx context.Context, req *alphabill.GetBlockRequest) (*alphabill.GetBlockResponse, error) {
 	b, err := r.node.GetBlock(ctx, req.BlockNo)
 	if err != nil {
-		return nil, err
+		return nil, errorToStatus(err)
 	}
 	return &alphabill.GetBlockResponse{Block: b}, nil
 }
 
-func (r *grpcServer) GetRoundNumber(_ context.Context, _ *emptypb.Empty) (*alphabill.GetRoundNumberResponse, error) {
-	latestRn, err := r.node.GetLatestRoundNumber()
+func (r *grpcServer) GetRoundNumber(ctx context.Context, _ *emptypb.Empty) (*alphabill.GetRoundNumberResponse, error) {
+	latestRn, err := r.node.GetLatestRoundNumber(ctx)
 	if err != nil {
-		return nil, err
+		return nil, errorToStatus(err)
 	}
 	return &alphabill.GetRoundNumberResponse{RoundNumber: latestRn}, nil
 }
 
 func (r *grpcServer) GetBlocks(ctx context.Context, req *alphabill.GetBlocksRequest) (*alphabill.GetBlocksResponse, error) {
-	if err := verifyRequest(req); err != nil {
-		return nil, fmt.Errorf("invalid get blocks request: %w", err)
+	if err := validateRequest(req); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid 'get blocks' request: %v", err)
 	}
-	latestBlock, err := r.node.GetLatestBlock()
+
+	latestBlock, err := r.node.GetLatestBlock(ctx)
 	if err != nil {
-		return nil, err
+		return nil, errorToStatus(err)
 	}
-	latestRn, err := r.node.GetLatestRoundNumber()
+	latestRn, err := r.node.GetLatestRoundNumber(ctx)
 	if err != nil {
-		return nil, err
+		return nil, errorToStatus(err)
 	}
 
 	maxBlockCount := util.Min(req.BlockCount, r.maxGetBlocksBatchSize)
@@ -99,7 +104,7 @@ func (r *grpcServer) GetBlocks(ctx context.Context, req *alphabill.GetBlocksRequ
 	for blockNumber := req.BlockNumber; blockNumber <= batchMaxBlockNumber; blockNumber++ {
 		b, err := r.node.GetBlock(ctx, blockNumber)
 		if err != nil {
-			return nil, err
+			return nil, errorToStatus(err)
 		}
 		if b == nil {
 			continue
@@ -109,7 +114,7 @@ func (r *grpcServer) GetBlocks(ctx context.Context, req *alphabill.GetBlocksRequ
 	return &alphabill.GetBlocksResponse{Blocks: res, MaxBlockNumber: latestBlock.UnicityCertificate.InputRecord.RoundNumber, MaxRoundNumber: latestRn, BatchMaxBlockNumber: batchMaxBlockNumber}, nil
 }
 
-func verifyRequest(req *alphabill.GetBlocksRequest) error {
+func validateRequest(req *alphabill.GetBlocksRequest) error {
 	if req.BlockNumber < 1 {
 		return fmt.Errorf("block number cannot be less than one, got %d", req.BlockNumber)
 	}
@@ -117,4 +122,15 @@ func verifyRequest(req *alphabill.GetBlocksRequest) error {
 		return fmt.Errorf("block count cannot be less than one, got %d", req.BlockCount)
 	}
 	return nil
+}
+
+func errorToStatus(err error) error {
+	switch {
+	case errors.Is(err, aberr.ErrInvalidState):
+		return status.New(codes.Unavailable, err.Error()).Err()
+	case errors.Is(err, aberr.ErrInvalidArgument):
+		return status.New(codes.InvalidArgument, err.Error()).Err()
+	}
+
+	return err
 }

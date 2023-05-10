@@ -214,13 +214,14 @@ func NewNetwork(nodeCount int, txSystemProvider func(trustBase map[string]crypto
 		go func(ec chan error) { ec <- n.Run(nctx) }(nodes[i].done)
 	}
 
-	return &AlphabillPartition{
+	abp := &AlphabillPartition{
 		RootNode:      rootNode,
 		Nodes:         nodes,
 		ctxCancel:     ctxCancel,
 		EventHandler:  eh,
 		RootPartition: rootPartition,
-	}, nil
+	}
+	return abp, abp.WaitAllNodesHealthy(time.Second)
 }
 
 func newRootPartition() (*RootPartition, error) {
@@ -246,6 +247,35 @@ func newRootPartition() (*RootPartition, error) {
 	}, nil
 }
 
+/*
+WaitAllNodesHealthy waits up to "timeout" duration for all partition nodes to become "healthy".
+Assumption is that when node responds to GetLatestRoundNumber call without error it is healthy.
+*/
+func (a *AlphabillPartition) WaitAllNodesHealthy(timeout time.Duration) error {
+	untilHealthy := func(ctx context.Context, n *partitionNode) error {
+		for {
+			if _, err := n.GetLatestRoundNumber(ctx); err == nil {
+				return nil
+			}
+			select {
+			case <-time.After(50 * time.Millisecond):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	for _, n := range a.Nodes {
+		if err := untilHealthy(ctx, n); err != nil {
+			return fmt.Errorf("node %s failed to become healthy: %w", n.AddrGRPC, err)
+		}
+	}
+	return nil
+}
+
 // BroadcastTx sends transactions to all nodes.
 func (a *AlphabillPartition) BroadcastTx(tx *txsystem.Transaction) error {
 	for _, n := range a.Nodes {
@@ -269,7 +299,7 @@ func (c TxConverter) ConvertTx(tx *txsystem.Transaction) (txsystem.GenericTransa
 
 func (a *AlphabillPartition) GetBlockProof(tx *txsystem.Transaction, txConverter TxConverter) (*block.GenericBlock, *block.BlockProof, error) {
 	for _, n := range a.Nodes {
-		bl, err := n.GetLatestBlock()
+		bl, err := n.GetLatestBlock(context.Background())
 		if err != nil {
 			return nil, nil, err
 		}
@@ -387,7 +417,7 @@ func BlockchainContainsTx(tx *txsystem.Transaction, network *AlphabillPartition)
 func BlockchainContains(network *AlphabillPartition, criteria func(tx *txsystem.Transaction) bool) func() bool {
 	return func() bool {
 		for _, n := range network.Nodes {
-			bl, err := n.GetLatestBlock()
+			bl, err := n.GetLatestBlock(context.Background())
 			if err != nil {
 				panic(err)
 			}

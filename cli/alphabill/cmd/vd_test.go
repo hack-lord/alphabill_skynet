@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/alphabill-org/alphabill/internal/network/protocol/genesis"
 	rootgenesis "github.com/alphabill-org/alphabill/internal/rootchain/genesis"
 	"github.com/alphabill-org/alphabill/internal/rpc/alphabill"
+	"github.com/alphabill-org/alphabill/internal/testutils/net"
 	testsig "github.com/alphabill-org/alphabill/internal/testutils/sig"
 	testtime "github.com/alphabill-org/alphabill/internal/testutils/time"
 	"github.com/alphabill-org/alphabill/internal/txsystem"
@@ -28,27 +30,7 @@ func TestRunVD(t *testing.T) {
 	nodeGenesisFileLocation := filepath.Join(homeDirVD, nodeGenesisFileName)
 	partitionGenesisFileLocation := filepath.Join(homeDirVD, "partition-genesis.json")
 	testtime.MustRunInTime(t, 5*time.Second, func() {
-		port := "9543"
-		listenAddr := ":" + port // listen is on all devices, so it would work in CI inside docker too.
-		dialAddr := "localhost:" + port
-
-		conf := &vdConfiguration{
-			baseNodeConfiguration: baseNodeConfiguration{
-				Base: &baseConfiguration{
-					HomeDir:    alphabillHomeDir(),
-					CfgFile:    filepath.Join(alphabillHomeDir(), defaultConfigFile),
-					LogCfgFile: defaultLoggerConfigFile,
-				},
-			},
-			Node: &startNodeConfiguration{},
-			RPCServer: &grpcServerConfiguration{
-				Address:        defaultServerAddr,
-				MaxRecvMsgSize: defaultMaxRecvMsgSize,
-				MaxSendMsgSize: defaultMaxSendMsgSize,
-			},
-		}
-		conf.RPCServer.Address = listenAddr
-
+		nodeAddr := fmt.Sprintf("localhost:%d", net.GetFreeRandomPort(t))
 		appStoppedWg := sync.WaitGroup{}
 		ctx, ctxCancel := context.WithCancel(context.Background())
 
@@ -56,8 +38,7 @@ func TestRunVD(t *testing.T) {
 		cmd := New()
 		args := "vd-genesis --home " + homeDirVD + " -o " + nodeGenesisFileLocation + " -g -k " + keysFileLocation
 		cmd.baseCmd.SetArgs(strings.Split(args, " "))
-		err := cmd.addAndExecuteCommand(context.Background())
-		require.NoError(t, err)
+		require.NoError(t, cmd.addAndExecuteCommand(ctx))
 
 		pn, err := util.ReadJsonFile(nodeGenesisFileLocation, &genesis.PartitionNode{})
 		require.NoError(t, err)
@@ -79,7 +60,7 @@ func TestRunVD(t *testing.T) {
 		go func() {
 
 			cmd = New()
-			args = "vd --home " + homeDirVD + " -g " + partitionGenesisFileLocation + " -k " + keysFileLocation + " --server-address " + listenAddr
+			args = "vd --home " + homeDirVD + " -g " + partitionGenesisFileLocation + " -k " + keysFileLocation + " --server-address " + nodeAddr
 			cmd.baseCmd.SetArgs(strings.Split(args, " "))
 
 			err = cmd.addAndExecuteCommand(ctx)
@@ -89,13 +70,12 @@ func TestRunVD(t *testing.T) {
 
 		log.Info("Started vd node and dialing...")
 		// Create the gRPC client
-		conn, err := grpc.DialContext(ctx, dialAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := grpc.DialContext(ctx, nodeAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		require.NoError(t, err)
 		defer conn.Close()
 		rpcClient := alphabill.NewAlphabillServiceClient(conn)
 
 		// Test
-		// green path
 		id := uint256.NewInt(rand.Uint64()).Bytes32()
 		tx := &txsystem.Transaction{
 			UnitId:                id[:],
@@ -105,12 +85,8 @@ func TestRunVD(t *testing.T) {
 		}
 
 		_, err = rpcClient.ProcessTransaction(ctx, tx, grpc.WaitForReady(true))
-		require.NoError(t, err)
-
-		// failing case
-		tx.SystemId = []byte{0, 0, 0, 0} // incorrect system id
-		_, err = rpcClient.ProcessTransaction(ctx, tx, grpc.WaitForReady(true))
-		require.ErrorContains(t, err, "transaction has invalid system identifier")
+		// as the rootchain is not running the partition node never gets past the initializing status
+		require.EqualError(t, err, `rpc error: code = Unavailable desc = invalid state: partition node status is "initializing"`)
 
 		// Close the app
 		ctxCancel()

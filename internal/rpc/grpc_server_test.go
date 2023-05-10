@@ -9,15 +9,19 @@ import (
 
 	"github.com/alphabill-org/alphabill/internal/block"
 	"github.com/alphabill-org/alphabill/internal/certificates"
+	aberr "github.com/alphabill-org/alphabill/internal/errors"
 	"github.com/alphabill-org/alphabill/internal/rpc/alphabill"
 	"github.com/alphabill-org/alphabill/internal/script"
 	"github.com/alphabill-org/alphabill/internal/txsystem"
 	"github.com/alphabill-org/alphabill/internal/txsystem/money"
+
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -46,11 +50,11 @@ func (mn *MockNode) GetBlock(_ context.Context, blockNumber uint64) (*block.Bloc
 	return &block.Block{UnicityCertificate: &certificates.UnicityCertificate{InputRecord: &certificates.InputRecord{RoundNumber: blockNumber}}}, nil
 }
 
-func (mn *MockNode) GetLatestBlock() (*block.Block, error) {
-	return mn.GetBlock(context.Background(), mn.maxBlockNumber)
+func (mn *MockNode) GetLatestBlock(ctx context.Context) (*block.Block, error) {
+	return mn.GetBlock(ctx, mn.maxBlockNumber)
 }
 
-func (mn *MockNode) GetLatestRoundNumber() (uint64, error) {
+func (mn *MockNode) GetLatestRoundNumber(_ context.Context) (uint64, error) {
 	return mn.maxBlockNumber, nil
 }
 
@@ -159,4 +163,31 @@ func createTransaction(id [32]byte) *txsystem.Transaction {
 		panic(err)
 	}
 	return tx
+}
+
+func Test_errorToStatus(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil input returns nil", func(t *testing.T) {
+		err := errorToStatus(nil)
+		require.Nil(t, err)
+	})
+
+	t.Run("unknown error is returned as is", func(t *testing.T) {
+		expErr := errors.New("foobar")
+		err := errorToStatus(expErr)
+		require.Equal(t, expErr, err)
+	})
+
+	t.Run("ErrInvalidState -> Unavailable", func(t *testing.T) {
+		err := errorToStatus(aberr.ErrInvalidState)
+		st := status.Convert(err)
+		require.Equal(t, codes.Unavailable, st.Code())
+	})
+
+	t.Run("ErrInvalidArgument -> InvalidArgument", func(t *testing.T) {
+		err := errorToStatus(aberr.ErrInvalidArgument)
+		st := status.Convert(err)
+		require.Equal(t, codes.InvalidArgument, st.Code())
+	})
 }

@@ -361,57 +361,29 @@ func TestRunMoneyNode_Ok(t *testing.T) {
 		rpcClient := alphabill.NewAlphabillServiceClient(conn)
 
 		// Test cases
-		makeSuccessfulPayment(t, ctx, rpcClient)
-		makeFailingPayment(t, ctx, rpcClient)
+		initialBillID := uint256.NewInt(defaultInitialBillId).Bytes32()
+		tx := &txsystem.Transaction{
+			UnitId:                initialBillID[:],
+			TransactionAttributes: new(anypb.Any),
+			ClientMetadata:        &txsystem.ClientMetadata{Timeout: 10},
+			OwnerProof:            script.PredicateArgumentEmpty(),
+			SystemId:              []byte{0, 0, 0, 0},
+		}
+		bt := &billtx.TransferAttributes{
+			NewBearer:   script.PredicateAlwaysTrue(),
+			TargetValue: defaultInitialBillValue,
+			Backlink:    nil,
+		}
+		require.NoError(t, anypb.MarshalFrom(tx.TransactionAttributes, bt, proto.MarshalOptions{}))
+
+		response, err := rpcClient.ProcessTransaction(ctx, tx, grpc.WaitForReady(true))
+		// as the rootchain is not running the partition node never gets past the initializing status
+		require.EqualError(t, err, `rpc error: code = Unavailable desc = invalid state: partition node status is "initializing"`)
+		require.Nil(t, response, "Failing payment should not return response")
 
 		// Close the app
 		ctxCancel()
 		// Wait for test asserts to be completed
 		appStoppedWg.Wait()
 	})
-}
-
-func makeSuccessfulPayment(t *testing.T, ctx context.Context, txClient alphabill.AlphabillServiceClient) {
-	initialBillID := uint256.NewInt(defaultInitialBillId).Bytes32()
-
-	tx := &txsystem.Transaction{
-		UnitId:                initialBillID[:],
-		TransactionAttributes: new(anypb.Any),
-		ClientMetadata:        &txsystem.ClientMetadata{Timeout: 10},
-		OwnerProof:            script.PredicateArgumentEmpty(),
-		SystemId:              []byte{0, 0, 0, 0},
-	}
-	bt := &billtx.TransferAttributes{
-		NewBearer:   script.PredicateAlwaysTrue(),
-		TargetValue: defaultInitialBillValue,
-		Backlink:    nil,
-	}
-	err := anypb.MarshalFrom(tx.TransactionAttributes, bt, proto.MarshalOptions{})
-	require.NoError(t, err)
-
-	_, err = txClient.ProcessTransaction(ctx, tx, grpc.WaitForReady(true))
-	require.NoError(t, err)
-}
-
-func makeFailingPayment(t *testing.T, ctx context.Context, txClient alphabill.AlphabillServiceClient) {
-	wrongBillID := uint256.NewInt(6).Bytes32()
-
-	tx := &txsystem.Transaction{
-		UnitId:                wrongBillID[:],
-		TransactionAttributes: new(anypb.Any),
-		ClientMetadata:        &txsystem.ClientMetadata{Timeout: 10},
-		OwnerProof:            script.PredicateArgumentEmpty(),
-		SystemId:              []byte{0},
-	}
-	bt := &billtx.TransferAttributes{
-		NewBearer:   script.PredicateAlwaysTrue(),
-		TargetValue: defaultInitialBillValue,
-		Backlink:    nil,
-	}
-	err := anypb.MarshalFrom(tx.TransactionAttributes, bt, proto.MarshalOptions{})
-	require.NoError(t, err)
-
-	response, err := txClient.ProcessTransaction(ctx, tx, grpc.WaitForReady(true))
-	require.Error(t, err)
-	require.Nil(t, response, "Failing payment should not return response")
 }

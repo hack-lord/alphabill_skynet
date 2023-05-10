@@ -10,6 +10,7 @@ import (
 	"github.com/alphabill-org/alphabill/internal/block"
 	"github.com/alphabill-org/alphabill/internal/certificates"
 	"github.com/alphabill-org/alphabill/internal/crypto"
+	aberr "github.com/alphabill-org/alphabill/internal/errors"
 	"github.com/alphabill-org/alphabill/internal/keyvaluedb/memorydb"
 	"github.com/alphabill-org/alphabill/internal/network"
 	p "github.com/alphabill-org/alphabill/internal/network/protocol"
@@ -28,12 +29,54 @@ import (
 
 type AlwaysValidCertificateValidator struct{}
 
+func (c *AlwaysValidCertificateValidator) Validate(_ *certificates.UnicityCertificate) error {
+	return nil
+}
+
 type convertTxFailsTxSystem struct {
 	testtxsystem.CounterTxSystem
 }
 
 func (c *convertTxFailsTxSystem) ConvertTx(*txsystem.Transaction) (txsystem.GenericTransaction, error) {
 	return nil, errors.New("invalid tx")
+}
+
+func TestNode_SubmitTx(t *testing.T) {
+	t.Run("invalid status: initializing", func(t *testing.T) {
+		n := &Node{}
+		n.status.Store(initializing)
+		err := n.SubmitTx(context.Background(), &txsystem.Transaction{})
+		require.ErrorIs(t, err, aberr.ErrInvalidState)
+	})
+
+	t.Run("failure to convert tx to generic transaction", func(t *testing.T) {
+		expErr := errors.New("tx convert error")
+		n := &Node{
+			transactionSystem: &mockTxSystem{
+				convertTx: func(*txsystem.Transaction) (txsystem.GenericTransaction, error) { return nil, expErr },
+			},
+		}
+		n.status.Store(normal)
+
+		err := n.SubmitTx(context.Background(), &txsystem.Transaction{})
+		require.ErrorIs(t, err, aberr.ErrInvalidArgument)
+		require.ErrorIs(t, err, expErr)
+	})
+
+	t.Run("invalid transaction (fails validation)", func(t *testing.T) {
+		expErr := errors.New("invalid tx")
+		n := &Node{
+			transactionSystem: &testtxsystem.CounterTxSystem{},
+			txValidator: &mockTxValidator{
+				validate: func(tx txsystem.GenericTransaction, latestBlockNumber uint64) error { return expErr },
+			},
+		}
+		n.status.Store(normal)
+
+		err := n.SubmitTx(context.Background(), &txsystem.Transaction{})
+		require.ErrorIs(t, err, aberr.ErrInvalidArgument)
+		require.ErrorIs(t, err, expErr)
+	})
 }
 
 func TestNode_StartNewRoundCallsRInit(t *testing.T) {
@@ -605,6 +648,20 @@ func TestBlockProposal_TxSystemStateIsDifferent_newUC(t *testing.T) {
 	require.Equal(t, recovering, tp.partition.status.Load())
 }
 
-func (c *AlwaysValidCertificateValidator) Validate(_ *certificates.UnicityCertificate) error {
-	return nil
+type mockTxSystem struct {
+	txsystem.TransactionSystem
+
+	convertTx func(*txsystem.Transaction) (txsystem.GenericTransaction, error)
+}
+
+func (txs *mockTxSystem) ConvertTx(tx *txsystem.Transaction) (txsystem.GenericTransaction, error) {
+	return txs.convertTx(tx)
+}
+
+type mockTxValidator struct {
+	validate func(tx txsystem.GenericTransaction, latestBlockNumber uint64) error
+}
+
+func (v *mockTxValidator) Validate(tx txsystem.GenericTransaction, latestBlockNumber uint64) error {
+	return v.validate(tx, latestBlockNumber)
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/alphabill-org/alphabill/internal/block"
 	"github.com/alphabill-org/alphabill/internal/certificates"
 	"github.com/alphabill-org/alphabill/internal/crypto"
+	aberr "github.com/alphabill-org/alphabill/internal/errors"
 	"github.com/alphabill-org/alphabill/internal/keyvaluedb"
 	"github.com/alphabill-org/alphabill/internal/metrics"
 	"github.com/alphabill-org/alphabill/internal/network"
@@ -1084,32 +1085,39 @@ func (n *Node) sendCertificationRequest(blockAuthor string) error {
 }
 
 func (n *Node) SubmitTx(_ context.Context, tx *txsystem.Transaction) (err error) {
+	if status := n.status.Load().(status); status != normal {
+		return invalidStatusError(status)
+	}
+
 	defer func() {
 		if err != nil {
 			invalidTransactionsCounter.Inc(1)
 		}
 	}()
+
 	genTx, err := n.transactionSystem.ConvertTx(tx)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: failed to convert transaction: %w", aberr.ErrInvalidArgument, err)
 	}
 
-	rn := n.getCurrentRound()
-	if err = n.txValidator.Validate(genTx, rn); err != nil {
-		return err
+	if err = n.txValidator.Validate(genTx, n.getCurrentRound()); err != nil {
+		return fmt.Errorf("%w: invalid transaction: %w", aberr.ErrInvalidArgument, err)
 	}
 	return n.txBuffer.Add(genTx)
 }
 
 func (n *Node) GetBlock(_ context.Context, blockNr uint64) (*block.Block, error) {
-	// find and return closest match from db
 	if blockNr == 0 {
-		return nil, fmt.Errorf("block number 0 does not exist")
+		return nil, fmt.Errorf("%w: block number 0 does not exist", aberr.ErrInvalidArgument)
 	}
+	if status := n.status.Load().(status); status != normal {
+		return nil, invalidStatusError(status)
+	}
+
 	var bl block.Block
 	found, err := n.blockStore.Read(util.Uint64ToBytes(blockNr), &bl)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read block from round %v from db, %w", blockNr, err)
+		return nil, fmt.Errorf("failed to read block from round %d from db: %w", blockNr, err)
 	}
 	if !found {
 		// empty block
@@ -1118,18 +1126,25 @@ func (n *Node) GetBlock(_ context.Context, blockNr uint64) (*block.Block, error)
 	return &bl, nil
 }
 
-func (n *Node) GetLatestBlock() (b *block.Block, err error) {
+func (n *Node) GetLatestBlock(_ context.Context) (b *block.Block, err error) {
+	if status := n.status.Load().(status); status != normal {
+		return nil, invalidStatusError(status)
+	}
+
 	dbIt := n.blockStore.Last()
 	defer func() { err = errors.Join(err, dbIt.Close()) }()
 	var bl block.Block
 	if err := dbIt.Value(&bl); err != nil {
 		roundNo := util.BytesToUint64(dbIt.Key())
-		return nil, fmt.Errorf("failed to read block %v from db, %w", roundNo, err)
+		return nil, fmt.Errorf("failed to read block %d from db: %w", roundNo, err)
 	}
 	return &bl, nil
 }
 
-func (n *Node) GetLatestRoundNumber() (uint64, error) {
+func (n *Node) GetLatestRoundNumber(_ context.Context) (uint64, error) {
+	if status := n.status.Load().(status); status != normal {
+		return 0, invalidStatusError(status)
+	}
 	return n.luc.Load().GetRoundNumber(), nil
 }
 
@@ -1182,4 +1197,21 @@ func (n *Node) hashProposedBlock(prevBlockHash []byte, author string) ([]byte, e
 
 func trackExecutionTime(start time.Time, name string) {
 	logger.Debug("%s took %s", name, time.Since(start))
+}
+
+func (s status) String() string {
+	switch s {
+	case initializing:
+		return "initializing"
+	case normal:
+		return "normal"
+	case recovering:
+		return "recovering"
+	default:
+		return fmt.Sprintf("status(%d)", int(s))
+	}
+}
+
+func invalidStatusError(s status) error {
+	return fmt.Errorf("%w: partition node status is %q", aberr.ErrInvalidState, s)
 }
