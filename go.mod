@@ -28,6 +28,7 @@ require (
 	github.com/stretchr/testify v1.8.2
 	github.com/swaggo/http-swagger v1.3.3
 	github.com/swaggo/swag v1.8.10
+	github.com/tetratelabs/wazero v1.1.0
 	github.com/tyler-smith/go-bip39 v1.1.0
 	go.etcd.io/bbolt v1.3.6
 	golang.org/x/crypto v0.8.0
