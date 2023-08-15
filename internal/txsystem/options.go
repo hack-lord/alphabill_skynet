@@ -10,8 +10,9 @@ type Options struct {
 	systemIdentifier    []byte
 	hashAlgorithm       crypto.Hash
 	state               *state.State
-	beginBlockFunctions []func(blockNumber uint64)
-	endBlockFunctions   []func(blockNumber uint64) error
+	beginBlockFunctions []TxEmitter
+	endBlockFunctions   []TxEmitter
+	systemGeneratedTxs  map[string]bool
 }
 
 type Option func(*Options)
@@ -20,20 +21,29 @@ func DefaultOptions() *Options {
 	return &Options{
 		hashAlgorithm:       crypto.SHA256,
 		state:               state.NewEmptyState(),
-		beginBlockFunctions: make([]func(blockNumber uint64), 0),
-		endBlockFunctions:   make([]func(blockNumber uint64) error, 0),
+		beginBlockFunctions: make([]TxEmitter, 0),
+		endBlockFunctions:   make([]TxEmitter, 0),
+		systemGeneratedTxs:  make(map[string]bool),
 	}
 }
 
-func WithBeginBlockFunctions(funcs []func(blockNumber uint64)) Option {
+func WithSystemGeneratedTxTypes(payloadTypes ...string) Option {
 	return func(g *Options) {
-		g.beginBlockFunctions = funcs
+		for _, payloadType := range payloadTypes {
+			g.systemGeneratedTxs[payloadType] = true
+		}
 	}
 }
 
-func WithEndBlockFunctions(funcs []func(blockNumber uint64) error) Option {
+func WithBeginBlockFunctions(funcs ...TxEmitter) Option {
 	return func(g *Options) {
-		g.endBlockFunctions = funcs
+		g.beginBlockFunctions = append(g.beginBlockFunctions, funcs...)
+	}
+}
+
+func WithEndBlockFunctions(funcs ...TxEmitter) Option {
+	return func(g *Options) {
+		g.endBlockFunctions = append(g.endBlockFunctions, funcs...)
 	}
 }
 

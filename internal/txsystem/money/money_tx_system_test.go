@@ -304,6 +304,14 @@ func TestEndBlock_DustBillsAreRemoved(t *testing.T) {
 	require.Equal(t, uint64(10), newBillData.V)
 	_, dustCollectorBill := getBill(t, rmaTree, dustCollectorMoneySupplyID)
 	require.Equal(t, initialDustCollectorMoneyAmount, dustCollectorBill.V)
+	sysGenTxrsCallback := func(u uint64, records ...*types.TransactionRecord) error {
+		for _, txr := range records {
+			_, err = txSystem.Execute(txr.TransactionOrder)
+			require.NoError(t, err)
+		}
+		return nil
+	}
+	txSystem.SetSystemGeneratedTxHandler(sysGenTxrsCallback)
 	_, err = txSystem.EndBlock()
 	require.NoError(t, err)
 	txSystem.Commit()

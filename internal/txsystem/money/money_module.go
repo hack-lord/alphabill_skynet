@@ -15,7 +15,7 @@ import (
 	"github.com/alphabill-org/alphabill/internal/types"
 )
 
-var _ txsystem.Module = &Module{}
+var _ txsystem.Module = (*Module)(nil)
 
 var (
 	ErrInitialBillIsNil                  = errors.New("initial bill may not be nil")
@@ -74,7 +74,7 @@ func NewMoneyModule(options *Options) (m *Module, err error) {
 		trustBase:           options.trustBase,
 		hashAlgorithm:       options.hashAlgorithm,
 		feeCreditTxRecorder: newFeeCreditTxRecorder(s, options.systemIdentifier, options.systemDescriptionRecords),
-		dustCollector:       NewDustCollector(s),
+		dustCollector:       NewDustCollector(s, options.systemIdentifier),
 		feeCalculator:       options.feeCalculator,
 	}
 	return
@@ -88,25 +88,29 @@ func (m *Module) TxExecutors() map[string]txsystem.TxExecutor {
 		PayloadTypeTransDC:  handleTransferDCTx(m.state, m.dustCollector, m.hashAlgorithm, m.feeCalculator),
 		PayloadTypeSwapDC:   handleSwapDCTx(m.state, m.hashAlgorithm, m.trustBase, m.feeCalculator),
 
+		// system generated tx handlers
+		PayloadTypeDeleteDustBills: m.dustCollector.handleDust(),
+
 		// fee credit related transaction handlers (credit transfers and reclaims only!)
 		transactions.PayloadTypeTransferFeeCredit: handleTransferFeeCreditTx(m.state, m.hashAlgorithm, m.feeCreditTxRecorder, m.feeCalculator),
 		transactions.PayloadTypeReclaimFeeCredit:  handleReclaimFeeCreditTx(m.state, m.hashAlgorithm, m.trustBase, m.feeCreditTxRecorder, m.feeCalculator),
 	}
 }
 
-func (m *Module) BeginBlockFuncs() []func(blockNr uint64) {
-	return []func(blockNr uint64){
-		func(blockNr uint64) {
+func (m *Module) BeginBlockFuncs() []txsystem.TxEmitter {
+	return []txsystem.TxEmitter{
+		func(blockNr uint64) ([]*types.TransactionRecord, error) {
 			m.feeCreditTxRecorder.reset()
+			return nil, nil
 		},
 	}
 }
 
-func (m *Module) EndBlockFuncs() []func(blockNumber uint64) error {
-	return []func(blockNumber uint64) error{
-		m.dustCollector.consolidateDust,
-		func(blockNr uint64) error {
-			return m.feeCreditTxRecorder.consolidateFees()
+func (m *Module) EndBlockFuncs() []txsystem.TxEmitter {
+	return []txsystem.TxEmitter{
+		m.dustCollector.generateDcTx,
+		func(blockNr uint64) ([]*types.TransactionRecord, error) {
+			return nil, m.feeCreditTxRecorder.consolidateFees()
 		},
 	}
 }

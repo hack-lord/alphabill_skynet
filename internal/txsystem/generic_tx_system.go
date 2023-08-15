@@ -31,27 +31,41 @@ type GenericTxSystem struct {
 	state               *state.State
 	logPruner           *state.LogPruner
 	currentBlockNumber  uint64
+	systemGeneratedTxs  map[string]bool
 	executors           TxExecutors
 	genericTxValidators []GenericTransactionValidator
-	beginBlockFunctions []func(blockNumber uint64)
-	endBlockFunctions   []func(blockNumber uint64) error
+	beginBlockFunctions []TxEmitter
+	endBlockFunctions   []TxEmitter
+	sysGenTxHandler     OnTransactionsFunc
 }
 
+type (
+	TxEmitter func(blockNumber uint64) ([]*types.TransactionRecord, error)
+)
+
 func NewGenericTxSystem(modules []Module, opts ...Option) (*GenericTxSystem, error) {
-	options := DefaultOptions()
-	for _, option := range opts {
-		option(options)
-	}
 	txs := &GenericTxSystem{
-		systemIdentifier:    options.systemIdentifier,
-		hashAlgorithm:       options.hashAlgorithm,
-		state:               options.state,
-		logPruner:           state.NewLogPruner(options.state),
-		beginBlockFunctions: options.beginBlockFunctions,
-		endBlockFunctions:   options.endBlockFunctions,
 		executors:           make(map[string]TxExecutor),
 		genericTxValidators: []GenericTransactionValidator{},
 	}
+
+	opts = append(opts, WithSystemGeneratedTxTypes(PayloadTypePruneStates))
+	opts = append(opts, WithBeginBlockFunctions(txs.generatePruneStatesTx))
+
+	options := DefaultOptions()
+
+	for _, option := range opts {
+		option(options)
+	}
+
+	txs.systemIdentifier = options.systemIdentifier
+	txs.hashAlgorithm = options.hashAlgorithm
+	txs.state = options.state
+	txs.logPruner = state.NewLogPruner(options.state)
+	txs.beginBlockFunctions = options.beginBlockFunctions
+	txs.endBlockFunctions = options.endBlockFunctions
+	txs.systemGeneratedTxs = options.systemGeneratedTxs
+
 	for _, module := range modules {
 		validator := module.GenericTransactionValidator()
 		if validator != nil {
@@ -74,6 +88,10 @@ func NewGenericTxSystem(modules []Module, opts ...Option) (*GenericTxSystem, err
 	}
 	txs.executors[PayloadTypePruneStates] = pruneExecutorFunc(txs.logPruner)
 	return txs, nil
+}
+
+func (m *GenericTxSystem) SetSystemGeneratedTxHandler(handler OnTransactionsFunc) {
+	m.sysGenTxHandler = handler
 }
 
 func (m *GenericTxSystem) GetState() *state.State {
@@ -102,38 +120,28 @@ func (m *GenericTxSystem) getState() (State, error) {
 	return NewStateSummary(hash, util.Uint64ToBytes(sv)), nil
 }
 
-func (m *GenericTxSystem) BeginBlock(blockNr uint64) {
-	for _, function := range m.beginBlockFunctions {
-		function(blockNr)
-	}
+func (m *GenericTxSystem) BeginBlock(blockNr uint64) error {
 	m.currentBlockNumber = blockNr
-}
-
-func (m *GenericTxSystem) ValidatorGeneratedTransactions() ([]*types.TransactionRecord, error) {
-	if m.logPruner.Count(m.currentBlockNumber-1) == 0 {
-		return nil, nil
+	for _, function := range m.beginBlockFunctions {
+		txs, err := function(blockNr)
+		if err != nil {
+			return fmt.Errorf("begin block function call failed: %w", err)
+		}
+		callback := m.sysGenTxHandler
+		if callback != nil {
+			if err = callback(blockNr, txs...); err != nil {
+				return err
+			}
+		}
 	}
-	if err := m.logPruner.Prune(m.currentBlockNumber - 1); err != nil {
-		return nil, fmt.Errorf("unable to prune state: %w", err)
-	}
-	return []*types.TransactionRecord{
-		{
-			TransactionOrder: &types.TransactionOrder{
-				Payload: &types.Payload{
-					SystemID:       m.systemIdentifier,
-					Type:           PayloadTypePruneStates,
-					ClientMetadata: &types.ClientMetadata{Timeout: m.currentBlockNumber + 1},
-				},
-			},
-			ServerMetadata: &types.ServerMetadata{ActualFee: 0},
-		},
-	}, nil
+	return nil
 }
 
 func (m *GenericTxSystem) Execute(tx *types.TransactionOrder) (sm *types.ServerMetadata, err error) {
-	if tx.PayloadType() == PayloadTypePruneStates {
+	if m.systemGeneratedTxs[tx.PayloadType()] {
 		return m.executors.Execute(tx, m.currentBlockNumber)
 	}
+
 	u, _ := m.state.GetUnit(tx.UnitID(), false)
 	ctx := &TxValidationContext{
 		Tx:               tx,
@@ -196,8 +204,15 @@ func (m *GenericTxSystem) Execute(tx *types.TransactionOrder) (sm *types.ServerM
 
 func (m *GenericTxSystem) EndBlock() (State, error) {
 	for _, function := range m.endBlockFunctions {
-		if err := function(m.currentBlockNumber); err != nil {
+		txs, err := function(m.currentBlockNumber)
+		if err != nil {
 			return nil, fmt.Errorf("end block function call failed: %w", err)
+		}
+		callback := m.sysGenTxHandler
+		if callback != nil {
+			if err = callback(m.currentBlockNumber, txs...); err != nil {
+				return nil, err
+			}
 		}
 	}
 	return m.getState()
@@ -217,4 +232,24 @@ func pruneExecutorFunc(pruner *state.LogPruner) ExecuteFunc {
 	return func(tx *types.TransactionOrder, currentBlockNr uint64) (*types.ServerMetadata, error) {
 		return &types.ServerMetadata{ActualFee: 0}, pruner.Prune(currentBlockNr - 1)
 	}
+}
+
+func (m *GenericTxSystem) generatePruneStatesTx(blockNumber uint64) ([]*types.TransactionRecord, error) {
+	if m.logPruner.Count(blockNumber-1) == 0 {
+		log.Info("generatePruneStatesTx: no prune states needed, block: %d", blockNumber)
+		return nil, nil
+	}
+	log.Info("generatePruneStatesTx: creating prune states transaction, block: %d", blockNumber)
+	return []*types.TransactionRecord{
+		{
+			TransactionOrder: &types.TransactionOrder{
+				Payload: &types.Payload{
+					SystemID:       m.systemIdentifier,
+					Type:           PayloadTypePruneStates,
+					ClientMetadata: &types.ClientMetadata{Timeout: blockNumber + 1},
+				},
+			},
+			ServerMetadata: &types.ServerMetadata{ActualFee: 0},
+		},
+	}, nil
 }
