@@ -266,6 +266,11 @@ func initState(n *Node) (err error) {
 	n.luc.Store(prevBlock.UnicityCertificate)
 	n.lastStoredBlock = prevBlock
 	n.restoreBlockProposal(prevBlock)
+
+	// No need to process stale messages accumulated during initState
+	discarded := emptyChannel(n.network.ReceivedChannel())
+	logger.Info("Discarded %d stale network messages", discarded)
+
 	return err
 }
 
@@ -1364,4 +1369,19 @@ func (p *pendingBlockProposal) pretty() string {
 
 func trackExecutionTime(start time.Time, name string) {
 	logger.Debug("%s took %s", name, time.Since(start))
+}
+
+func emptyChannel(channel <-chan any) int {
+	var discarded int
+	for {
+		select {
+		case _, ok := <-channel:
+			if !ok {
+				return discarded
+			}
+			discarded += 1
+		default:
+			return discarded
+		}
+	}
 }
