@@ -352,6 +352,10 @@ func (n *Node) loop(ctx context.Context) error {
 	defer ticker.Stop()
 	var lastRootMsgTime time.Time
 
+	// No need to process stale messages accumulated during init
+	discarded := emptyChannel(n.network.ReceivedChannel())
+	logger.Info("Discarded %d stale network messages", discarded)
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -1364,4 +1368,19 @@ func (p *pendingBlockProposal) pretty() string {
 
 func trackExecutionTime(start time.Time, name string) {
 	logger.Debug("%s took %s", name, time.Since(start))
+}
+
+func emptyChannel(channel <-chan any) int {
+	var discarded int
+	for {
+		select {
+		case _, ok := <-channel:
+			if !ok {
+				return discarded
+			}
+			discarded += 1
+		default:
+			return discarded
+		}
+	}
 }
