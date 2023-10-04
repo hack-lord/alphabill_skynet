@@ -6,6 +6,17 @@ stages:
 
 image: $CI_REGISTRY/alphabill/gitlab-ci-image:main
 
+# Cache go external modules
+.go-cache:
+  variables:
+    GOPATH: "$CI_PROJECT_DIR/.go:/root/go"
+  cache:
+    key:
+      files:
+        - go.sum
+    paths:
+      - .go/pkg/mod/
+
 # Debugging info and initialization goes here
 init:
   stage: init
@@ -13,11 +24,13 @@ init:
     - go env
 
 vet:
+  extends: .go-cache
   stage: test
   script:
     - go vet ./...
 
 test:
+  extends: .go-cache
   stage: test
   needs:
     # tests are expensive compared to vet so do not start tests unless vet job succeeded
@@ -39,6 +52,7 @@ test:
     when: always
 
 build:
+  extends: .go-cache
   stage: build
   script:
     - make build build_scripts
@@ -48,6 +62,7 @@ build:
       - build
 
 gosec:
+  extends: .go-cache
   stage: test
   script:
     - make gosec
@@ -100,6 +115,7 @@ trivy:
     when: always
 
 nancy:
+  extends: .go-cache
   stage: analyze
   when: manual
   script:
