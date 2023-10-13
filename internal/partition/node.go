@@ -550,7 +550,7 @@ func (n *Node) handleBlockProposal(ctx context.Context, prop *blockproposal.Bloc
 	}
 	for _, tx := range prop.Transactions {
 		if err = n.process(tx.TransactionOrder, n.getCurrentRound()); err != nil {
-			return fmt.Errorf("processing transaction %q: %w", tx.TransactionOrder.UnitID(), err)
+			return fmt.Errorf("processing transaction %X: %w", tx.Hash(n.configuration.hashAlgorithm), err)
 		}
 	}
 	if err = n.sendCertificationRequest(ctx, prop.NodeIdentifier); err != nil {
