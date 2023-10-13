@@ -3,7 +3,6 @@ package partition
 import (
 	"bytes"
 	"context"
-	gocrypto "crypto"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -447,7 +446,7 @@ func (n *Node) handleOrForwardTransaction(ctx context.Context, tx *types.Transac
 		n.txCh <- tx
 		return true
 	}
-	n.log.DebugContext(ctx, fmt.Sprintf("forwarding tx %X to %v", tx.Hash(gocrypto.SHA256), leader), logger.UnitID(tx.UnitID()))
+	n.log.DebugContext(ctx, fmt.Sprintf("forwarding tx %X to %v", tx.Hash(n.configuration.hashAlgorithm), leader), logger.UnitID(tx.UnitID()))
 	if err := n.network.Send(ctx, tx, leader); err != nil {
 		n.log.WarnContext(ctx, "failed to forward tx", logger.Error(err), logger.UnitID(tx.UnitID()))
 		return false
