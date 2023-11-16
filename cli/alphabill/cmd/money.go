@@ -43,6 +43,7 @@ func newMoneyNodeCmd(baseConfig *baseConfiguration, nodeRunFunc moneyNodeRunnabl
 		Short: "Starts a money node",
 		Long:  `Starts a money partition's node, binding to the network address provided by configuration.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			fmt.Println("custom func:", nodeRunFunc != nil)
 			if nodeRunFunc != nil {
 				return nodeRunFunc(cmd.Context(), config)
 			}
