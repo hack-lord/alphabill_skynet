@@ -155,7 +155,7 @@ func testID(t *testing.T) int64 {
 	if id, ok := reg[t]; ok {
 		return id
 	}
-	id := rand.Int63()
+	id := rand.Int63() // #nosec G404
 	reg[t] = id
 	return id
 }
