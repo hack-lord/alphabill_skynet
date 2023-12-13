@@ -1,6 +1,8 @@
 package testutils
 
 import (
+	"fmt"
+
 	abcrypto "github.com/alphabill-org/alphabill/crypto"
 	"github.com/alphabill-org/alphabill/predicates/templates"
 	moneytx "github.com/alphabill-org/alphabill/txsystem/money"
@@ -32,9 +34,18 @@ func CreateInitialBillTransferTx(accountKey *account.AccountKey, billID, fcrID t
 			},
 		},
 	}
-	signer, _ := abcrypto.NewInMemorySecp256K1SignerFromKey(accountKey.PrivKey)
+	signer, err := abcrypto.NewInMemorySecp256K1SignerFromKey(accountKey.PrivKey)
+	if err != nil {
+		return nil, fmt.Errorf("creating signer from key: %w", err)
+	}
 	sigBytes, err := txo.PayloadBytes()
-	sigData, _ := signer.SignBytes(sigBytes)
+	if err != nil {
+		return nil, fmt.Errorf("reading payload bytes: %w", err)
+	}
+	sigData, err := signer.SignBytes(sigBytes)
+	if err != nil {
+		return nil, fmt.Errorf("signing tx order: %w", err)
+	}
 	txo.OwnerProof = templates.NewP2pkh256SignatureBytes(sigData, accountKey.PubKey)
 	return txo, nil
 }
