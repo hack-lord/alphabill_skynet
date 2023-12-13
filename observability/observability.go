@@ -29,8 +29,10 @@ import (
 
 func newObservability(metrics, traces string) (*otelMetricsAndTrace, error) {
 	res := resource.NewWithAttributes(semconv.SchemaURL,
+		semconv.ServiceNamespace("alphabill"),
 		semconv.ServiceName(serviceName()),
 		semconv.ServiceVersion("0.3.0"),
+		semconv.ProcessPID(os.Getpid()),
 	)
 
 	o := &otelMetricsAndTrace{mp: noop.NewMeterProvider(), tp: tnop.NewTracerProvider()}
