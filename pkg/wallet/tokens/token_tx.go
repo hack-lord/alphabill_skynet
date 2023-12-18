@@ -12,7 +12,7 @@ import (
 	"github.com/alphabill-org/alphabill/internal/txsystem/tokens"
 	ttxs "github.com/alphabill-org/alphabill/internal/txsystem/tokens"
 	"github.com/alphabill-org/alphabill/internal/types"
-	"github.com/alphabill-org/alphabill/pkg/wallet"
+	sdk "github.com/alphabill-org/alphabill/pkg/wallet"
 	"github.com/alphabill-org/alphabill/pkg/wallet/account"
 	"github.com/alphabill-org/alphabill/pkg/wallet/log"
 	"github.com/alphabill-org/alphabill/pkg/wallet/money/tx_builder"
@@ -156,15 +156,10 @@ func (w *Wallet) prepareTxSubmission(ctx context.Context, payloadType string, at
 	tx.FeeProof = sig
 
 	// convert again for hashing as the tx might have been modified
-	txSub := &txsubmitter.TxSubmission{
-		UnitID:      unitId,
-		Transaction: tx,
-		TxHash:      tx.Hash(crypto.SHA256),
-	}
-	return txSub, nil
+	return txsubmitter.New(tx), nil
 }
 
-func signTx(tx *types.TransactionOrder, attrs types.SigBytesProvider, ac *account.AccountKey) (wallet.Predicate, error) {
+func signTx(tx *types.TransactionOrder, attrs types.SigBytesProvider, ac *account.AccountKey) (sdk.Predicate, error) {
 	if ac == nil {
 		return script.PredicateArgumentEmpty(), nil
 	}
@@ -183,7 +178,7 @@ func signTx(tx *types.TransactionOrder, attrs types.SigBytesProvider, ac *accoun
 	return script.PredicateArgumentPayToPublicKeyHashDefault(sig, ac.PubKey), nil
 }
 
-func makeTxFeeProof(tx *types.TransactionOrder, ac *account.AccountKey) (wallet.Predicate, error) {
+func makeTxFeeProof(tx *types.TransactionOrder, ac *account.AccountKey) (sdk.Predicate, error) {
 	if ac == nil {
 		return script.PredicateArgumentEmpty(), nil
 	}
@@ -202,7 +197,7 @@ func makeTxFeeProof(tx *types.TransactionOrder, ac *account.AccountKey) (wallet.
 	return script.PredicateArgumentPayToPublicKeyHashDefault(sig, ac.PubKey), nil
 }
 
-func newFungibleTransferTxAttrs(token *backend.TokenUnit, receiverPubKey []byte) *ttxs.TransferFungibleTokenAttributes {
+func newFungibleTransferTxAttrs(token *backend.TokenUnit, receiverPubKey []byte) (*ttxs.TransferFungibleTokenAttributes, string) {
 	log.Info(fmt.Sprintf("Creating transfer with bl=%X", token.TxHash))
 	return &ttxs.TransferFungibleTokenAttributes{
 		TypeID:                       token.TypeID,
@@ -210,7 +205,7 @@ func newFungibleTransferTxAttrs(token *backend.TokenUnit, receiverPubKey []byte)
 		Value:                        token.Amount,
 		Backlink:                     token.TxHash,
 		InvariantPredicateSignatures: nil,
-	}
+	}, ttxs.PayloadTypeTransferFungibleToken
 }
 
 func newNonFungibleTransferTxAttrs(token *backend.TokenUnit, receiverPubKey []byte) *ttxs.TransferNonFungibleTokenAttributes {
@@ -223,14 +218,14 @@ func newNonFungibleTransferTxAttrs(token *backend.TokenUnit, receiverPubKey []by
 	}
 }
 
-func bearerPredicateFromHash(receiverPubKeyHash []byte) wallet.Predicate {
+func bearerPredicateFromHash(receiverPubKeyHash []byte) sdk.Predicate {
 	if receiverPubKeyHash != nil {
 		return script.PredicatePayToPublicKeyHashDefault(receiverPubKeyHash)
 	}
 	return script.PredicateAlwaysTrue()
 }
 
-func BearerPredicateFromPubKey(receiverPubKey wallet.PubKey) wallet.Predicate {
+func BearerPredicateFromPubKey(receiverPubKey sdk.PubKey) sdk.Predicate {
 	var h []byte
 	if receiverPubKey != nil {
 		h = hash.Sum256(receiverPubKey)
@@ -238,7 +233,7 @@ func BearerPredicateFromPubKey(receiverPubKey wallet.PubKey) wallet.Predicate {
 	return bearerPredicateFromHash(h)
 }
 
-func newSplitTxAttrs(token *backend.TokenUnit, amount uint64, receiverPubKey []byte) *ttxs.SplitFungibleTokenAttributes {
+func newSplitTxAttrs(token *backend.TokenUnit, amount uint64, receiverPubKey []byte) (*ttxs.SplitFungibleTokenAttributes, string) {
 	log.Info(fmt.Sprintf("Creating split with bl=%X, new value=%v", token.TxHash, amount))
 	return &ttxs.SplitFungibleTokenAttributes{
 		TypeID:                       token.TypeID,
@@ -247,7 +242,7 @@ func newSplitTxAttrs(token *backend.TokenUnit, amount uint64, receiverPubKey []b
 		RemainingValue:               token.Amount - amount,
 		Backlink:                     token.TxHash,
 		InvariantPredicateSignatures: [][]byte{script.PredicateArgumentEmpty()},
-	}
+	}, ttxs.PayloadTypeSplitFungibleToken
 }
 
 func newBurnTxAttrs(token *backend.TokenUnit, targetStateHash []byte) *ttxs.BurnFungibleTokenAttributes {
@@ -262,7 +257,7 @@ func newBurnTxAttrs(token *backend.TokenUnit, targetStateHash []byte) *ttxs.Burn
 }
 
 // assumes there's sufficient balance for the given amount, sends transactions immediately
-func (w *Wallet) doSendMultiple(ctx context.Context, amount uint64, tokens []*backend.TokenUnit, acc *account.AccountKey, receiverPubKey []byte, invariantPredicateArgs []*PredicateInput) (*SubmissionResult, error) {
+func (w *Wallet) doSendMultiple(ctx context.Context, amount uint64, tokens []*backend.TokenUnit, acc *accountKey, receiverPubKey []byte, invariantPredicateArgs []*PredicateInput) (*SubmissionResult, error) {
 	var accumulatedSum uint64
 	sort.Slice(tokens, func(i, j int) bool {
 		return tokens[i].Amount > tokens[j].Amount
@@ -273,7 +268,7 @@ func (w *Wallet) doSendMultiple(ctx context.Context, amount uint64, tokens []*ba
 
 	for _, t := range tokens {
 		remainingAmount := amount - accumulatedSum
-		sub, err := w.prepareSplitOrTransferTx(ctx, acc, remainingAmount, t, receiverPubKey, invariantPredicateArgs, rnFetcher.getRoundNumber)
+		sub, err := w.prepareSplitOrTransferTx(ctx, acc.AccountKey, remainingAmount, t, receiverPubKey, invariantPredicateArgs, rnFetcher.getRoundNumber)
 		if err != nil {
 			return nil, err
 		}
@@ -290,18 +285,16 @@ func (w *Wallet) doSendMultiple(ctx context.Context, amount uint64, tokens []*ba
 			feeSum += sub.Proof.TxRecord.ServerMetadata.ActualFee
 		}
 	}
-	return &SubmissionResult{FeeSum: feeSum}, err
+	return &SubmissionResult{Submissions: batch.Submissions(), FeeSum: feeSum, AccountNumber: acc.idx + 1}, err
 }
 
 func (w *Wallet) prepareSplitOrTransferTx(ctx context.Context, acc *account.AccountKey, amount uint64, token *twb.TokenUnit, receiverPubKey []byte, invariantPredicateArgs []*PredicateInput, rn roundNumberFetcher) (*txsubmitter.TxSubmission, error) {
 	var attrs AttrWithInvariantPredicateInputs
 	var payloadType string
 	if amount >= token.Amount {
-		attrs = newFungibleTransferTxAttrs(token, receiverPubKey)
-		payloadType = ttxs.PayloadTypeTransferFungibleToken
+		attrs, payloadType = newFungibleTransferTxAttrs(token, receiverPubKey)
 	} else {
-		attrs = newSplitTxAttrs(token, amount, receiverPubKey)
-		payloadType = ttxs.PayloadTypeSplitFungibleToken
+		attrs, payloadType = newSplitTxAttrs(token, amount, receiverPubKey)
 	}
 	sub, err := w.prepareTxSubmission(ctx, payloadType, attrs, token.ID, acc, rn, func(tx *types.TransactionOrder) error {
 		signatures, err := preparePredicateSignatures(w.am, invariantPredicateArgs, tx, attrs)
@@ -331,5 +324,35 @@ func createTx(systemID []byte, payloadType string, unitId []byte, timeout uint64
 			},
 		},
 		// OwnerProof is added after whole transaction is built
+	}
+}
+
+// GetTxFungibleAmount returns the amount of fungible tokens sent or burned in the given transaction. Used by outside packages.
+func GetTxFungibleAmount(tx *sdk.TransactionOrder) (sdk.UnitID, uint64, error) {
+	switch tx.Payload.Type {
+	case tokens.PayloadTypeTransferFungibleToken:
+		var attrs ttxs.TransferFungibleTokenAttributes
+		err := cbor.Unmarshal(tx.Payload.Attributes, &attrs)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to unmarshal '%s' attributes: %w", tx.Payload.Type, err)
+		}
+		return tx.UnitID(), attrs.Value, nil
+	case tokens.PayloadTypeSplitFungibleToken:
+		var attrs ttxs.SplitFungibleTokenAttributes
+		err := cbor.Unmarshal(tx.Payload.Attributes, &attrs)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to unmarshal '%s' attributes: %w", tx.Payload.Type, err)
+		}
+		unitID := tokens.NewFungibleTokenID(tx.UnitID(), tokens.HashForIDCalculation(tx.Cast(), crypto.SHA256))
+		return sdk.UnitID(unitID), attrs.TargetValue, nil
+	case tokens.PayloadTypeBurnFungibleToken:
+		var attrs ttxs.BurnFungibleTokenAttributes
+		err := cbor.Unmarshal(tx.Payload.Attributes, &attrs)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to unmarshal '%s' attributes: %w", tx.Payload.Type, err)
+		}
+		return tx.UnitID(), attrs.Value, nil
+	default:
+		return nil, 0, fmt.Errorf("unsupported tx type: %s", tx.Payload.Type)
 	}
 }

@@ -292,7 +292,7 @@ func TestNewTypes(t *testing.T) {
 		result, err := tw.NewFungibleType(context.Background(), 1, a, typeId, nil)
 		require.NoError(t, err)
 		require.NotNil(t, result)
-		require.EqualValues(t, typeId, result.TokenTypeID)
+		require.EqualValues(t, typeId, result.GetUnit())
 		tx, found := recTxs[string(typeId)]
 		require.True(t, found)
 		newFungibleTx := &ttxs.CreateFungibleTokenTypeAttributes{}
@@ -329,7 +329,7 @@ func TestNewTypes(t *testing.T) {
 
 		//check typeId generation if typeId parameter is nil
 		result, _ = tw.NewFungibleType(context.Background(), 1, a, nil, nil)
-		require.True(t, result.TokenTypeID.HasType(tokens.FungibleTokenTypeUnitType))
+		require.True(t, types.UnitID(result.GetUnit()).HasType(tokens.FungibleTokenTypeUnitType))
 	})
 
 	t.Run("non-fungible type", func(t *testing.T) {
@@ -346,7 +346,7 @@ func TestNewTypes(t *testing.T) {
 		result, err := tw.NewNonFungibleType(context.Background(), 1, a, typeId, nil)
 		require.NoError(t, err)
 		require.NotNil(t, result)
-		require.EqualValues(t, typeId, result.TokenTypeID)
+		require.EqualValues(t, typeId, result.GetUnit())
 		tx, found := recTxs[string(typeId)]
 		require.True(t, found)
 		newNFTTx := &ttxs.CreateNonFungibleTokenTypeAttributes{}
@@ -366,7 +366,7 @@ func TestNewTypes(t *testing.T) {
 
 		//check typeId generation if typeId parameter is nil
 		result, _ = tw.NewNonFungibleType(context.Background(), 1, a, nil, nil)
-		require.True(t, result.TokenTypeID.HasType(tokens.NonFungibleTokenTypeUnitType))
+		require.True(t, types.UnitID(result.GetUnit()).HasType(tokens.NonFungibleTokenTypeUnitType))
 	})
 }
 
@@ -417,7 +417,7 @@ func TestMintFungibleToken(t *testing.T) {
 			tx := recTxs[len(recTxs)-1]
 			newToken := &ttxs.MintFungibleTokenAttributes{}
 			require.NotNil(t, result)
-			require.EqualValues(t, tx.UnitID(), result.TokenID)
+			require.EqualValues(t, tx.UnitID(), result.GetUnit())
 			require.NoError(t, tx.UnmarshalAttributes(newToken))
 			require.NotEqual(t, []byte{0}, tx.UnitID())
 			require.Len(t, tx.UnitID(), 33)
@@ -583,6 +583,65 @@ func TestSendFungible(t *testing.T) {
 	}
 }
 
+func TestSendFungibleByID(t *testing.T) {
+	t.Parallel()
+
+	token := &backend.TokenUnit{
+		ID:     test.RandomBytes(32),
+		Kind:   backend.Fungible,
+		Symbol: "AB",
+		TypeID: test.RandomBytes(32),
+		Amount: 100,
+	}
+
+	// Mock the backend
+	be := &mockTokenBackend{
+		getToken: func(ctx context.Context, id backend.TokenID) (*backend.TokenUnit, error) {
+			if bytes.Equal(id, token.ID) {
+				return token, nil
+			}
+			return nil, fmt.Errorf("not found")
+		},
+		getFeeCreditBill: func(ctx context.Context, unitID types.UnitID) (*wallet.Bill, error) {
+			return &wallet.Bill{
+				Id:     []byte{1},
+				Value:  100000,
+				TxHash: []byte{2},
+			}, nil
+		},
+		postTransactions: func(ctx context.Context, pubKey wallet.PubKey, txs *wallet.Transactions) error {
+			return nil
+		},
+		getRoundNumber: func(ctx context.Context) (uint64, error) {
+			return 1, nil
+		},
+	}
+
+	// Initialize the wallet
+	wallet := initTestWallet(t, be)
+
+	// Test sending fungible token by ID
+	sub, err := wallet.SendFungibleByID(context.Background(), 1, token.ID, 50, nil, nil)
+	require.NoError(t, err)
+	// ensure it's a split
+	require.Equal(t, ttxs.PayloadTypeSplitFungibleToken, sub.Submissions[0].Transaction.PayloadType())
+
+	sub, err = wallet.SendFungibleByID(context.Background(), 1, token.ID, 100, nil, nil)
+	require.NoError(t, err)
+	// ensure it's a transfer
+	require.Equal(t, ttxs.PayloadTypeTransferFungibleToken, sub.Submissions[0].Transaction.PayloadType())
+
+	// Test sending fungible token by ID with insufficient balance
+	_, err = wallet.SendFungibleByID(context.Background(), 1, token.ID, 200, nil, nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "insufficient FT value")
+
+	// Test sending fungible token by ID with invalid account number
+	_, err = wallet.SendFungibleByID(context.Background(), 0, token.ID, 50, nil, nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid account number")
+}
+
 func TestMintNFT_InvalidInputs(t *testing.T) {
 	tokenID := test.RandomBytes(32)
 	accNr := uint64(1)
@@ -705,7 +764,7 @@ func TestMintNFT(t *testing.T) {
 			tx := recTxs[len(recTxs)-1]
 			newToken := &ttxs.MintNonFungibleTokenAttributes{}
 			require.NotNil(t, result)
-			require.EqualValues(t, tx.UnitID(), result.TokenID)
+			require.EqualValues(t, tx.UnitID(), result.GetUnit())
 			require.NoError(t, tx.UnmarshalAttributes(newToken))
 			require.NotEqual(t, []byte{0}, tx.UnitID())
 			require.Len(t, tx.UnitID(), 33)
