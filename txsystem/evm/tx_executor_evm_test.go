@@ -11,7 +11,9 @@ import (
 	"github.com/alphabill-org/alphabill/internal/testutils/logger"
 	"github.com/alphabill-org/alphabill/keyvaluedb/memorydb"
 	abstate "github.com/alphabill-org/alphabill/state"
+	"github.com/alphabill-org/alphabill/txsystem/evm/conversion"
 	"github.com/alphabill-org/alphabill/txsystem/evm/statedb"
+	"github.com/alphabill-org/alphabill/txsystem/evm/unit"
 	"github.com/alphabill-org/alphabill/types"
 	"github.com/alphabill-org/alphabill/util"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -26,6 +28,7 @@ import (
 )
 
 const oneEth = 1000000000000000000
+const oneAlpha = 100000000
 
 func BenchmarkCallContract(b *testing.B) {
 	log := logger.NOP()
@@ -297,7 +300,6 @@ func Test_execute(t *testing.T) {
 			wantSuccessIndicator: types.TxStatusFailed,
 			wantDetails: &ProcessingDetails{
 				ErrorDetails: "evm runtime error: out of gas",
-				ContractAddr: common.Address{},
 			},
 			wantUpdatedUnits: 1, // caller still gets charged since work is done
 		},
@@ -350,7 +352,6 @@ func Test_execute(t *testing.T) {
 			wantSuccessIndicator: types.TxStatusFailed,
 			wantDetails: &ProcessingDetails{
 				ErrorDetails: "evm runtime error: out of gas",
-				ContractAddr: common.Address{},
 			},
 			wantUpdatedUnits: 1, // caller still gets charged since work is done
 		},
@@ -387,9 +388,9 @@ func Test_execute(t *testing.T) {
 			},
 			wantSuccessIndicator: types.TxStatusFailed,
 			wantDetails: &ProcessingDetails{
-				ErrorDetails: "evm runtime error: execution reverted",
-				ContractAddr: evmcrypto.CreateAddress(common.BytesToAddress(fromAddr.Bytes()), 0),
-				ReturnData:   nil,
+				ErrorDetails:   "evm runtime error: execution reverted",
+				ContractUnitID: unit.NewEvmAccountIDFromAddress(evmcrypto.CreateAddress(common.BytesToAddress(fromAddr.Bytes()), 0)),
+				ReturnData:     nil,
 			},
 			wantUpdatedUnits: 1, // caller still gets charged since work is done
 		},
@@ -409,7 +410,6 @@ func Test_execute(t *testing.T) {
 			wantSuccessIndicator: types.TxStatusSuccessful,
 			wantDetails: &ProcessingDetails{
 				ErrorDetails: "",
-				ContractAddr: common.Address{},
 			},
 			wantUpdatedUnits: 2, // caller still gets charged since work is done
 		},
@@ -448,9 +448,9 @@ func Test_execute(t *testing.T) {
 			},
 			wantSuccessIndicator: types.TxStatusSuccessful,
 			wantDetails: &ProcessingDetails{
-				ErrorDetails: "",
-				ContractAddr: evmcrypto.CreateAddress(common.BytesToAddress(fromAddr.Bytes()), 0),
-				ReturnData:   uint256.NewInt(0).PaddedBytes(32),
+				ErrorDetails:   "",
+				ContractUnitID: unit.NewEvmAccountIDFromAddress(evmcrypto.CreateAddress(common.BytesToAddress(fromAddr.Bytes()), 0)),
+				ReturnData:     uint256.NewInt(0).PaddedBytes(32),
 			},
 			wantUpdatedUnits: 1, // only eor gets credited for the read call
 		},
@@ -470,9 +470,9 @@ func Test_execute(t *testing.T) {
 			},
 			wantSuccessIndicator: types.TxStatusSuccessful,
 			wantDetails: &ProcessingDetails{
-				ErrorDetails: "",
-				ContractAddr: evmcrypto.CreateAddress(common.BytesToAddress(fromAddr.Bytes()), 0),
-				ReturnData:   uint256.NewInt(1).PaddedBytes(32),
+				ErrorDetails:   "",
+				ContractUnitID: unit.NewEvmAccountIDFromAddress(evmcrypto.CreateAddress(common.BytesToAddress(fromAddr.Bytes()), 0)),
+				ReturnData:     uint256.NewInt(1).PaddedBytes(32),
 			},
 			wantUpdatedUnits: 2,
 		},
@@ -528,7 +528,7 @@ func Test_ReplayContractCreation(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, metadata)
 	// check that fee and account balance add up to initial value
-	require.EqualValues(t, initialBalance, new(big.Int).Add(alphaToWei(metadata.ActualFee), stateDB.GetBalance(eoaAddr)))
+	require.EqualValues(t, initialBalance, new(big.Int).Add(conversion.AlphaToWei(metadata.ActualFee), stateDB.GetBalance(eoaAddr)))
 	// Try to replay
 	_, err = Execute(1, stateDB, memorydb.New(), evmAttr, systemIdentifier, gasPool, gasPrice, false, log)
 	require.ErrorContains(t, err, "nonce too low")
@@ -557,7 +557,7 @@ func Test_ReplayCall(t *testing.T) {
 	require.NotNil(t, metadata)
 	// check that fee and account balance add up to initial value
 	initialBalance := big.NewInt(2 * (53000 * DefaultGasPrice)) // this is the value set as balance in initStateDBWithAccountAndSC
-	require.EqualValues(t, initialBalance, new(big.Int).Add(alphaToWei(metadata.ActualFee), stateDB.GetBalance(fromAddr)))
+	require.EqualValues(t, initialBalance, new(big.Int).Add(conversion.AlphaToWei(metadata.ActualFee), stateDB.GetBalance(fromAddr)))
 
 	// try to replay
 	_, err = Execute(2, stateDB, memorydb.New(), callContract, systemIdentifier, gasPool, gasPrice, false, log)

@@ -8,6 +8,7 @@ import (
 	"github.com/alphabill-org/alphabill/internal/testutils/logger"
 	teststate "github.com/alphabill-org/alphabill/internal/testutils/state"
 	"github.com/alphabill-org/alphabill/state"
+	"github.com/alphabill-org/alphabill/txsystem/evm/unit"
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -45,14 +46,14 @@ func TestStateDB_CreateAccount(t *testing.T) {
 
 			s.CreateAccount(tt.address)
 			require.NoError(t, s.errDB)
-			u, err := tt.tree.GetUnit(tt.address.Bytes(), false)
+			u, err := tt.tree.GetUnit(unit.NewEvmAccountIDFromAddress(tt.address), false)
 			require.NoError(t, err)
 			require.NotNil(t, u)
 			require.True(t, s.Exist(tt.address))
 			require.Equal(t, tt.expectedAccountBalance, s.GetBalance(tt.address))
 			require.Equal(t, ([]byte)(nil), s.GetCode(tt.address))
 			require.Equal(t, uint64(0), s.GetNonce(tt.address))
-			require.Equal(t, common.BytesToHash(emptyCodeHash), s.GetCodeHash(tt.address))
+			require.Equal(t, common.BytesToHash(unit.EmptyCodeHash), s.GetCodeHash(tt.address))
 		})
 	}
 }
@@ -213,7 +214,7 @@ func TestStateDB_Code(t *testing.T) {
 			initialState:     initState(t),
 			address:          initialAccountAddress,
 			expectedCode:     nil,
-			expectedCodeHash: common.BytesToHash(emptyCodeHash),
+			expectedCodeHash: common.BytesToHash(unit.EmptyCodeHash),
 		},
 		{
 			name:         "set code",

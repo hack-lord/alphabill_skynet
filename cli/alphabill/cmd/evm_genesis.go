@@ -96,9 +96,7 @@ func evmGenesisRunFun(_ context.Context, config *evmGenesisConfig) error {
 	if err != nil {
 		return fmt.Errorf("load keys %v failed: %w", config.Keys.GetKeyFileLocation(), err)
 	}
-
 	genesisState := state.NewEmptyState()
-
 	peerID, err := peer.IDFromPublicKey(keys.EncryptionPrivateKey.GetPublic())
 	if err != nil {
 		return err

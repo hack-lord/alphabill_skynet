@@ -9,7 +9,9 @@ import (
 	"github.com/alphabill-org/alphabill/keyvaluedb"
 	"github.com/alphabill-org/alphabill/logger"
 	"github.com/alphabill-org/alphabill/txsystem"
+	"github.com/alphabill-org/alphabill/txsystem/evm/conversion"
 	"github.com/alphabill-org/alphabill/txsystem/evm/statedb"
+	"github.com/alphabill-org/alphabill/txsystem/evm/unit"
 	"github.com/alphabill-org/alphabill/types"
 	"github.com/alphabill-org/alphabill/util"
 	"github.com/ethereum/go-ethereum/common"
@@ -20,11 +22,11 @@ import (
 )
 
 type ProcessingDetails struct {
-	_            struct{} `cbor:",toarray"`
-	ErrorDetails string
-	ReturnData   []byte
-	ContractAddr common.Address
-	Logs         []*statedb.LogEntry
+	_              struct{} `cbor:",toarray"`
+	ErrorDetails   string
+	ReturnData     []byte
+	ContractUnitID types.UnitID
+	Logs           []*statedb.LogEntry
 }
 
 func errorToStr(err error) string {
@@ -64,7 +66,7 @@ func Execute(currentBlockNumber uint64, stateDB *statedb.StateDB, blockDB keyval
 	}
 	// Verify balance
 	balance := stateDB.GetBalance(attr.FromAddr())
-	projectedMaxFee := alphaToWei(weiToAlpha(new(big.Int).Mul(gasUnitPrice, new(big.Int).SetUint64(attr.Gas))))
+	projectedMaxFee := conversion.AlphaToWei(conversion.WeiToAlpha(new(big.Int).Mul(gasUnitPrice, new(big.Int).SetUint64(attr.Gas))))
 	if balance.Cmp(projectedMaxFee) == -1 {
 		return nil, fmt.Errorf("insufficient fee credit balance for transaction")
 	}
@@ -88,15 +90,15 @@ func Execute(currentBlockNumber uint64, stateDB *statedb.StateDB, blockDB keyval
 		}
 	}
 	// The contract address can be derived from the transaction itself
-	var contractAddress common.Address
+	var contractUnitID types.UnitID
 	if attr.ToAddr() == nil {
 		// Deriving the signer is expensive, only do if it's actually needed
-		contractAddress = ethcrypto.CreateAddress(attr.FromAddr(), attr.Nonce)
+		contractUnitID = unit.NewEvmAccountIDFromAddress(ethcrypto.CreateAddress(attr.FromAddr(), attr.Nonce))
 	}
 	evmProcessingDetails := &ProcessingDetails{
-		ReturnData:   execResult.ReturnData,
-		ContractAddr: contractAddress,
-		ErrorDetails: errorToStr(errorDetail),
+		ReturnData:     execResult.ReturnData,
+		ContractUnitID: contractUnitID,
+		ErrorDetails:   errorToStr(errorDetail),
 	}
 	if errorDetail == nil {
 		evmProcessingDetails.Logs = stateDB.GetLogs()
@@ -106,9 +108,9 @@ func Execute(currentBlockNumber uint64, stateDB *statedb.StateDB, blockDB keyval
 		return nil, fmt.Errorf("evm result encode error %w", err)
 	}
 	txPrice := calcGasPrice(execResult.UsedGas, gasUnitPrice)
-	fee := weiToAlpha(txPrice)
+	fee := conversion.WeiToAlpha(txPrice)
 	// if rounding isn't clean, add or subtract balance accordingly
-	feeInWei := alphaToWei(fee)
+	feeInWei := conversion.AlphaToWei(fee)
 	stateDB.AddBalance(msg.From, new(big.Int).Sub(txPrice, feeInWei))
 
 	log.LogAttrs(context.Background(), logger.LevelTrace, fmt.Sprintf("total gas: %v gas units, price in alpha %v", execResult.UsedGas, fee), logger.Round(currentBlockNumber))

@@ -13,10 +13,13 @@ import (
 	"github.com/alphabill-org/alphabill/internal/testutils/observability"
 	teststate "github.com/alphabill-org/alphabill/internal/testutils/state"
 	"github.com/alphabill-org/alphabill/keyvaluedb/memorydb"
+	"github.com/alphabill-org/alphabill/predicates/templates"
 	"github.com/alphabill-org/alphabill/rpc"
 	abstate "github.com/alphabill-org/alphabill/state"
 	"github.com/alphabill-org/alphabill/txsystem/evm"
 	"github.com/alphabill-org/alphabill/txsystem/evm/statedb"
+	"github.com/alphabill-org/alphabill/txsystem/evm/unit"
+	fc "github.com/alphabill-org/alphabill/txsystem/fc/unit"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -95,7 +98,7 @@ func TestAPI_CallEVM_CleanState_OK(t *testing.T) {
 	require.NoError(t, cbor.NewDecoder(recorder.Body).Decode(resp))
 
 	require.Empty(t, resp.ProcessingDetails.ErrorDetails)
-	require.NotEqual(t, resp.ProcessingDetails.ContractAddr, common.Address{})
+	require.NotEmpty(t, resp.ProcessingDetails.ContractUnitID)
 	require.NotEmpty(t, resp.ProcessingDetails.ReturnData, common.Address{})
 	require.Empty(t, resp.ProcessingDetails.Logs)
 	// make sure state is reverted back
@@ -189,7 +192,7 @@ func TestAPI_CallEVM_ToFieldMissing(t *testing.T) {
 	resp := &CallEVMResponse{}
 	require.NoError(t, cbor.NewDecoder(recorder.Body).Decode(resp))
 	require.Empty(t, resp.ProcessingDetails.ErrorDetails)
-	require.NotEqual(t, resp.ProcessingDetails.ContractAddr, common.Address{})
+	require.NotEmpty(t, resp.ProcessingDetails.ContractUnitID)
 	require.Empty(t, resp.ProcessingDetails.ReturnData, common.Address{})
 	require.Empty(t, resp.ProcessingDetails.Logs)
 }
@@ -217,14 +220,17 @@ func TestAPI_CallEVM_InvalidRequest(t *testing.T) {
 	require.Equal(t, "unable to decode request body: cbor: cannot unmarshal negative integer into Go value of type api.CallEVMRequest", resp.Err)
 }
 
-func initState(t *testing.T, tree *abstate.State) (common.Address, common.Address) {
+func initState(t *testing.T, s *abstate.State) (common.Address, common.Address) {
 	log := logger.New(t)
-	stateDB := statedb.NewStateDB(tree, log)
+	// simulate added fee credit
 	address := common.BytesToAddress(test.RandomBytes(20))
+	unitID := unit.NewEvmAccountIDFromAddress(address)
+	var balance uint64 = 500000
+	backlink := test.RandomBytes(32)
+	err := s.Apply(fc.AddCredit(unitID, templates.AlwaysTrueBytes(), unit.NewEvmFcr(balance, backlink, 10)))
+	require.NoError(t, err)
 
-	stateDB.CreateAccount(address)
-	balance := big.NewInt(5000000000000100)
-	stateDB.AddBalance(address, balance)
+	stateDB := statedb.NewStateDB(s, log)
 
 	evmAttr := &evm.TxAttributes{
 		From:  address.Bytes(),
@@ -237,8 +243,10 @@ func initState(t *testing.T, tree *abstate.State) (common.Address, common.Addres
 	gasPrice := big.NewInt(evm.DefaultGasPrice)
 	sm, err := evm.Execute(1, stateDB, memorydb.New(), evmAttr, systemIdentifier, gasPool, gasPrice, false, log)
 	details := &evm.ProcessingDetails{}
-	require.NoError(t, sm.UnmarshalDetails(details))
 	require.NoError(t, err)
-	teststate.CommitWithUC(t, tree)
-	return address, details.ContractAddr
+	require.NoError(t, sm.UnmarshalDetails(details))
+	_, _, err = s.CalculateRoot()
+	require.NoError(t, err)
+	teststate.CommitWithUC(t, s)
+	return address, unit.AddressFromUnitID(details.ContractUnitID)
 }

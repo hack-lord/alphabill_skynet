@@ -11,6 +11,7 @@ import (
 	"github.com/alphabill-org/alphabill/observability"
 	"github.com/alphabill-org/alphabill/txsystem/evm"
 	"github.com/alphabill-org/alphabill/txsystem/evm/api"
+	"github.com/alphabill-org/alphabill/txsystem/evm/unit"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/spf13/cobra"
@@ -69,7 +70,7 @@ func runEvmNode(ctx context.Context, cfg *evmConfiguration) error {
 	if stateFilePath == "" {
 		stateFilePath = filepath.Join(cfg.Base.HomeDir, evmDir, evmGenesisStateFileName)
 	}
-	state, err := loadStateFile(stateFilePath, evm.NewUnitData)
+	state, err := loadStateFile(stateFilePath, unit.NewUnitData)
 	if err != nil {
 		return fmt.Errorf("loading state (file %s): %w", cfg.Node.StateFile, err)
 	}

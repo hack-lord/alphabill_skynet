@@ -7,6 +7,8 @@ import (
 	"github.com/alphabill-org/alphabill/crypto"
 	"github.com/alphabill-org/alphabill/keyvaluedb"
 	"github.com/alphabill-org/alphabill/state"
+	"github.com/alphabill-org/alphabill/txsystem/fc"
+	"github.com/alphabill-org/alphabill/txsystem/money"
 )
 
 const DefaultBlockGasLimit = 15000000
@@ -23,6 +25,7 @@ type (
 		blockGasLimit           uint64
 		gasUnitPrice            *big.Int
 		blockDB                 keyvaluedb.KeyValueDB
+		feeCalculator           fc.FeeCalculator
 	}
 
 	Option func(*Options)
@@ -30,11 +33,12 @@ type (
 
 func DefaultOptions() *Options {
 	return &Options{
-		moneyTXSystemIdentifier: []byte{0, 0, 0, 0},
+		moneyTXSystemIdentifier: money.DefaultSystemIdentifier,
 		hashAlgorithm:           gocrypto.SHA256,
 		trustBase:               nil,
 		blockGasLimit:           DefaultBlockGasLimit,
 		gasUnitPrice:            big.NewInt(DefaultGasPrice),
+		feeCalculator:           fc.FixedFee(1),
 	}
 }
 
