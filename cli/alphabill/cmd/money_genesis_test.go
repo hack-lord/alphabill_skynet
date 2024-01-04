@@ -231,7 +231,7 @@ func Test_moneyGenesisConfig_getSDRFiles(t *testing.T) {
 
 	t.Run("parse file", func(t *testing.T) {
 		// setup-testab.sh creates the SDR files with hardcoded content - refactor
-		// so that thse files can be tested here?
+		// so that these files can be tested here?
 		fileName := filepath.Join(testDir, "sdr.json")
 		err := os.WriteFile(fileName, []byte(`{"system_identifier": 1234567890, "t2timeout": 2500, "fee_credit_bill": {"unit_id": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ=", "owner_predicate": "U3aoAU8B9SAiu0UEB9kvE78cUxKKZ2vPMEgY6fQaXvTr6unA1rCHaawB"}}`), 0666)
 		require.NoError(t, err)
@@ -244,7 +244,7 @@ func Test_moneyGenesisConfig_getSDRFiles(t *testing.T) {
 	})
 
 	t.Run("defaultMoneySDR", func(t *testing.T) {
-		// serialize and deserializs default money SDR
+		// serialize and deserialize default money SDR
 		fileName, err := createSDRFile(testDir, defaultMoneySDR)
 		require.NoError(t, err)
 		cfg := moneyGenesisConfig{SDRFiles: []string{fileName}}
