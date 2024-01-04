@@ -171,12 +171,12 @@ func (c *moneyGenesisConfig) getNodeGenesisStateFileLocation(home string) string
 }
 
 func (c *moneyGenesisConfig) getPartitionParams() ([]byte, error) {
-	sdrFiles, err := c.getSDRFiles()
+	sdrs, err := c.getSDRs()
 	if err != nil {
 		return nil, err
 	}
 	src := &genesis.MoneyPartitionParams{
-		SystemDescriptionRecords: sdrFiles,
+		SystemDescriptionRecords: sdrs,
 	}
 	res, err := cbor.Marshal(src)
 	if err != nil {
@@ -185,7 +185,7 @@ func (c *moneyGenesisConfig) getPartitionParams() ([]byte, error) {
 	return res, nil
 }
 
-func (c *moneyGenesisConfig) getSDRFiles() ([]*genesis.SystemDescriptionRecord, error) {
+func (c *moneyGenesisConfig) getSDRs() ([]*genesis.SystemDescriptionRecord, error) {
 	var sdrs []*genesis.SystemDescriptionRecord
 	if len(c.SDRFiles) == 0 {
 		sdrs = append(sdrs, defaultMoneySDR)
@@ -244,7 +244,7 @@ func addInitialDustCollectorMoneySupply(s *state.State, config *moneyGenesisConf
 }
 
 func addInitialFeeCreditBills(s *state.State, config *moneyGenesisConfig) error {
-	sdrs, err := config.getSDRFiles()
+	sdrs, err := config.getSDRs()
 	if err != nil {
 		return err
 	}
