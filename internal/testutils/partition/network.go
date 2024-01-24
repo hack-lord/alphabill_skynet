@@ -199,7 +199,7 @@ func (r *RootPartition) start(ctx context.Context) error {
 	}
 	var rootPeers = make([]*network.Peer, rootNodes)
 	for i := 0; i < len(peerIDs); i++ {
-		port, err := net.GetFreePort()
+		port, err := net.SharedPortManager.GetFreePort()
 		if err != nil {
 			return fmt.Errorf("failed to get free port, %w", err)
 		}
