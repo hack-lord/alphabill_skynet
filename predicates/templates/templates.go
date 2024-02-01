@@ -8,7 +8,6 @@ import (
 	"github.com/alphabill-org/alphabill/crypto"
 	"github.com/alphabill-org/alphabill/hash"
 	"github.com/alphabill-org/alphabill/predicates"
-	"github.com/alphabill-org/alphabill/types"
 	"github.com/fxamacker/cbor/v2"
 )
 
@@ -74,7 +73,7 @@ func (t *P2pkh256) Execute(predicate, sig, sigData []byte) error {
 	if err != nil {
 		return fmt.Errorf("failed to decode P2PKH256 predicate template: %w", err)
 	}
-	p2pkh256Signature := types.Signature{}
+	p2pkh256Signature := predicates.P2pkh256Signature{}
 	if err = cbor.Unmarshal(sig, &p2pkh256Signature); err != nil {
 		return fmt.Errorf("failed to decode P2PKH256 signature: %w", err)
 	}
@@ -133,7 +132,7 @@ func NewP2pkh256BytesFromKeyHash(pubKeyHash []byte) predicates.PredicateBytes {
 }
 
 func NewP2pkh256SignatureBytes(sig, pubKey []byte) []byte {
-	sb, _ := cbor.Marshal(types.Signature{Sig: sig, PubKey: pubKey})
+	sb, _ := cbor.Marshal(predicates.P2pkh256Signature{Sig: sig, PubKey: pubKey})
 	return sb
 }
 

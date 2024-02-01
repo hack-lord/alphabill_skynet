@@ -9,6 +9,7 @@ import (
 	test "github.com/alphabill-org/alphabill/internal/testutils"
 	"github.com/alphabill-org/alphabill/internal/testutils/logger"
 	testsig "github.com/alphabill-org/alphabill/internal/testutils/sig"
+	"github.com/alphabill-org/alphabill/predicates"
 	"github.com/alphabill-org/alphabill/predicates/templates"
 	"github.com/alphabill-org/alphabill/state"
 	"github.com/alphabill-org/alphabill/txsystem/evm/statedb"
@@ -24,7 +25,7 @@ func newCloseFCTx(t *testing.T, unitID []byte, attr *transactions.CloseFeeCredit
 	tx := &types.TransactionOrder{
 		Payload: newTxPayload(t, transactions.PayloadTypeCloseFeeCredit, unitID, timeout, nil, attr),
 	}
-	require.NoError(t, tx.SetOwnerProof(types.OwnerProoferForSigner(signer)))
+	require.NoError(t, tx.SetOwnerProof(predicates.OwnerProoferForSigner(signer)))
 	return tx
 }
 

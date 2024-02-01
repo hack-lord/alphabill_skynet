@@ -8,7 +8,6 @@ import (
 	test "github.com/alphabill-org/alphabill/internal/testutils"
 	testsig "github.com/alphabill-org/alphabill/internal/testutils/sig"
 	"github.com/alphabill-org/alphabill/predicates"
-	"github.com/alphabill-org/alphabill/types"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/stretchr/testify/require"
 )
@@ -79,7 +78,7 @@ func TestP2pkh256_Execute(t *testing.T) {
 		payload := &P2pkh256Payload{PubKeyHash: hash.Sum256(pubKey)}
 		payloadBytes, err := cbor.Marshal(payload)
 		require.NoError(t, err)
-		signature := types.Signature{Sig: sig, PubKey: pubKey}
+		signature := predicates.P2pkh256Signature{Sig: sig, PubKey: pubKey}
 		sigBytes, err := cbor.Marshal(signature)
 		require.NoError(t, err)
 		require.NoError(t, runner.Execute(payloadBytes, sigBytes, sigData))
@@ -102,7 +101,7 @@ func TestP2pkh256_Execute(t *testing.T) {
 		payload := &P2pkh256Payload{PubKeyHash: hash.Sum256(pubKey)}
 		payloadBytes, err := cbor.Marshal(payload)
 		require.NoError(t, err)
-		signature := types.Signature{Sig: sig, PubKey: pubKey}
+		signature := predicates.P2pkh256Signature{Sig: sig, PubKey: pubKey}
 		sigBytes, err := cbor.Marshal(signature)
 		require.NoError(t, err)
 		require.ErrorContains(t, runner.Execute(payloadBytes, sigBytes, test.RandomBytes(5)), "verification failed")
@@ -113,7 +112,7 @@ func TestP2pkh256_Execute(t *testing.T) {
 		payload := &P2pkh256Payload{PubKeyHash: test.RandomBytes(32)}
 		payloadBytes, err := cbor.Marshal(payload)
 		require.NoError(t, err)
-		signature := types.Signature{Sig: sig, PubKey: pubKey}
+		signature := predicates.P2pkh256Signature{Sig: sig, PubKey: pubKey}
 		sigBytes, err := cbor.Marshal(signature)
 		require.NoError(t, err)
 		require.ErrorContains(t, runner.Execute(payloadBytes, sigBytes, nil), "pubkey hash does not match")
@@ -124,7 +123,7 @@ func TestP2pkh256_Execute(t *testing.T) {
 		payload := &P2pkh256Payload{PubKeyHash: test.RandomBytes(34)}
 		payloadBytes, err := cbor.Marshal(payload)
 		require.NoError(t, err)
-		signature := types.Signature{Sig: sig, PubKey: pubKey}
+		signature := predicates.P2pkh256Signature{Sig: sig, PubKey: pubKey}
 		sigBytes, err := cbor.Marshal(signature)
 		require.NoError(t, err)
 		require.ErrorContains(t, runner.Execute(payloadBytes, sigBytes, nil), "invalid pubkey hash size")
@@ -135,7 +134,7 @@ func TestP2pkh256_Execute(t *testing.T) {
 		payload := &P2pkh256Payload{PubKeyHash: hash.Sum256(pubKey)}
 		payloadBytes, err := cbor.Marshal(payload)
 		require.NoError(t, err)
-		signature := types.Signature{Sig: sig[:64], PubKey: pubKey}
+		signature := predicates.P2pkh256Signature{Sig: sig[:64], PubKey: pubKey}
 		sigBytes, err := cbor.Marshal(signature)
 		require.NoError(t, err)
 		require.ErrorContains(t, runner.Execute(payloadBytes, sigBytes, nil), "invalid signature size")
@@ -146,7 +145,7 @@ func TestP2pkh256_Execute(t *testing.T) {
 		payload := &P2pkh256Payload{PubKeyHash: hash.Sum256(pubKey)}
 		payloadBytes, err := cbor.Marshal(payload)
 		require.NoError(t, err)
-		signature := types.Signature{Sig: sig, PubKey: pubKey[:32]}
+		signature := predicates.P2pkh256Signature{Sig: sig, PubKey: pubKey[:32]}
 		sigBytes, err := cbor.Marshal(signature)
 		require.NoError(t, err)
 		require.ErrorContains(t, runner.Execute(payloadBytes, sigBytes, nil), "invalid pubkey size")
@@ -159,7 +158,7 @@ func TestP2pkh256_Execute(t *testing.T) {
 		payload := &P2pkh256Payload{PubKeyHash: hash.Sum256(pubKey)}
 		payloadBytes, err := cbor.Marshal(payload)
 		require.NoError(t, err)
-		signature := types.Signature{Sig: sig, PubKey: pubKey}
+		signature := predicates.P2pkh256Signature{Sig: sig, PubKey: pubKey}
 		sigBytes, err := cbor.Marshal(signature)
 		require.NoError(t, err)
 		require.ErrorContains(t, runner.Execute(payloadBytes, sigBytes, nil), "failed to create verifier")

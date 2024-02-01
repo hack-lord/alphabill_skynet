@@ -11,6 +11,7 @@ import (
 	testpartition "github.com/alphabill-org/alphabill/internal/testutils/partition"
 	testevent "github.com/alphabill-org/alphabill/internal/testutils/partition/event"
 	"github.com/alphabill-org/alphabill/partition/event"
+	"github.com/alphabill-org/alphabill/predicates"
 	"github.com/alphabill-org/alphabill/predicates/templates"
 	"github.com/alphabill-org/alphabill/state"
 	"github.com/alphabill-org/alphabill/txsystem"
@@ -305,7 +306,7 @@ func TestPartition_SwapDCOk(t *testing.T) {
 		OwnerProof: nil,
 		FeeProof:   templates.AlwaysTrueArgBytes(),
 	}
-	require.NoError(t, swapTx.SetOwnerProof(types.OwnerProoferSecp256K1(decodeHex(privKey1), decodeHex(pubKey1))))
+	require.NoError(t, swapTx.SetOwnerProof(predicates.OwnerProoferSecp256K1(decodeHex(privKey1), decodeHex(pubKey1))))
 
 	require.NoError(t, moneyPrt.SubmitTx(swapTx))
 	_, _, err = testpartition.WaitTxProof(t, moneyPrt, swapTx)
@@ -318,7 +319,7 @@ func TestPartition_SwapDCOk(t *testing.T) {
 func createSplitTx(t *testing.T, fromID []byte, prevTx *types.TransactionRecord, targetUnits []*TargetUnit, remaining uint64) *types.TransactionOrder {
 	backlink := prevTx.TransactionOrder.Hash(crypto.SHA256)
 	tx, _ := createSplit(t, fromID, targetUnits, remaining, backlink)
-	require.NoError(t, tx.SetOwnerProof(types.OwnerProoferSecp256K1(decodeHex(privKey1), decodeHex(pubKey1))))
+	require.NoError(t, tx.SetOwnerProof(predicates.OwnerProoferSecp256K1(decodeHex(privKey1), decodeHex(pubKey1))))
 	return tx
 }
 
@@ -339,7 +340,7 @@ func createDCAndSwapTxs(
 		// NB! dc transfer target backlink must be equal to swap tx unit id
 		targetValue += billData.V
 		tx, _ := createDCTransfer(t, id, billData.V, billData.Backlink, targetID, targetBacklink)
-		tx.SetOwnerProof(types.OwnerProoferSecp256K1(decodeHex(privKey2), decodeHex(pubKey2)))
+		tx.SetOwnerProof(predicates.OwnerProoferSecp256K1(decodeHex(privKey2), decodeHex(pubKey2)))
 		dcTransfers[i] = tx
 	}
 

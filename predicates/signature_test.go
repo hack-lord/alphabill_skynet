@@ -1,4 +1,4 @@
-package types
+package predicates
 
 import (
 	"errors"
@@ -73,7 +73,7 @@ func Test_OwnerProofer(t *testing.T) {
 
 		ownerProof, err := proofer(data)
 		require.NoError(t, err)
-		sig := Signature{}
+		sig := P2pkh256Signature{}
 		require.NoError(t, cbor.Unmarshal(ownerProof, &sig))
 		require.Equal(t, signature, sig.Sig)
 		require.Equal(t, pubKey, sig.PubKey)
@@ -142,7 +142,7 @@ func Test_OwnerProoferForSigner(t *testing.T) {
 
 		ownerProof, err := proofer(data)
 		require.NoError(t, err)
-		sig := Signature{}
+		sig := P2pkh256Signature{}
 		require.NoError(t, cbor.Unmarshal(ownerProof, &sig))
 		require.Equal(t, signature, sig.Sig)
 		require.Equal(t, pubKey, sig.PubKey)
@@ -168,7 +168,7 @@ func Test_OwnerProoferSecp256K1(t *testing.T) {
 
 		ownerProof, err := proofer([]byte{0xD, 0xA, 0x7, 0xA})
 		require.NoError(t, err)
-		sig := Signature{}
+		sig := P2pkh256Signature{}
 		require.NoError(t, cbor.Unmarshal(ownerProof, &sig))
 		require.NotEmpty(t, sig.Sig)
 		require.Equal(t, pubKey, sig.PubKey)

@@ -1,4 +1,4 @@
-package types
+package predicates
 
 import (
 	"errors"
@@ -10,10 +10,10 @@ import (
 )
 
 /*
-Signature is a signature and public key pair, typically used as
+P2pkh256Signature is a signature and public key pair, typically used as
 owner proof (ie the public key can be used to verify the signature).
 */
-type Signature struct {
+type P2pkh256Signature struct {
 	_      struct{} `cbor:",toarray"`
 	Sig    []byte
 	PubKey []byte
@@ -29,14 +29,14 @@ func EncodeSignature(sig, pubKey []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating CBOR encoder: %w", err)
 	}
-	return enc.Marshal(Signature{Sig: sig, PubKey: pubKey})
+	return enc.Marshal(P2pkh256Signature{Sig: sig, PubKey: pubKey})
 }
 
 func ExtractPubKey(ownerProof []byte) ([]byte, error) {
 	if len(ownerProof) == 0 {
 		return nil, errors.New("empty owner proof as input")
 	}
-	sig := Signature{}
+	sig := P2pkh256Signature{}
 	if err := cbor.Unmarshal(ownerProof, &sig); err != nil {
 		return nil, fmt.Errorf("decoding owner proof as Signature: %w", err)
 	}
