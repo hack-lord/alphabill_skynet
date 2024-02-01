@@ -23,7 +23,7 @@ func Test_ExtractPubKey(t *testing.T) {
 
 	t.Run("invalid CBOR input", func(t *testing.T) {
 		pk, err := ExtractPubKey([]byte{0})
-		require.EqualError(t, err, `decoding owner proof as Signature: cbor: cannot unmarshal positive integer into Go value of type types.Signature`)
+		require.EqualError(t, err, `decoding owner proof as Signature: cbor: cannot unmarshal positive integer into Go value of type predicates.P2pkh256Signature`)
 		require.Nil(t, pk)
 	})
 
