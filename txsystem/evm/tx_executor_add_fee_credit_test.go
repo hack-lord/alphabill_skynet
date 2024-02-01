@@ -48,19 +48,11 @@ func newTxPayload(t *testing.T, txType string, unitID []byte, timeout uint64, fc
 }
 
 func newAddFCTx(t *testing.T, unitID []byte, attr *transactions.AddFeeCreditAttributes, signer abcrypto.Signer, timeout uint64) *types.TransactionOrder {
-	payload := newTxPayload(t, transactions.PayloadTypeAddFeeCredit, unitID, timeout, nil, attr)
-	payloadBytes, err := payload.Bytes()
-	require.NoError(t, err)
-	sig, err := signer.SignBytes(payloadBytes)
-	require.NoError(t, err)
-	ver, err := signer.Verifier()
-	require.NoError(t, err)
-	pubKeyBytes, err := ver.MarshalPublicKey()
-	require.NoError(t, err)
-	return &types.TransactionOrder{
-		Payload:    payload,
-		OwnerProof: templates.NewP2pkh256SignatureBytes(sig, pubKeyBytes),
+	tx := &types.TransactionOrder{
+		Payload: newTxPayload(t, transactions.PayloadTypeAddFeeCredit, unitID, timeout, nil, attr),
 	}
+	require.NoError(t, tx.SetOwnerProof(types.OwnerProoferForSigner(signer)))
+	return tx
 }
 
 func evmTestFeeCalculator() uint64 {
