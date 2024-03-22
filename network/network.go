@@ -135,11 +135,16 @@ func (n *LibP2PNetwork) sendAsync(ctx context.Context, protocol *sendProtocolDat
 	return nil
 }
 
-func sendMsg(ctx context.Context, host *Peer, protocolID string, data []byte, receiverID peer.ID) (rErr error) {
+func sendMsg(ctx context.Context, host *Peer, protocolID string, data []byte, receiverID peer.ID) (err error) {
 	s, err := host.CreateStream(ctx, receiverID, protocolID)
 	if err != nil {
 		return fmt.Errorf("open p2p stream: %w", err)
 	}
+	defer func() {
+		if closeErr := s.Close(); closeErr != nil {
+			err = errors.Join(err, fmt.Errorf("closing p2p stream: %w", closeErr))
+		}
+	}()
 	if deadline, ok := ctx.Deadline(); ok {
 		if err = s.SetWriteDeadline(deadline); err != nil {
 			return fmt.Errorf("error setting write deadline: %w", err)
@@ -148,15 +153,9 @@ func sendMsg(ctx context.Context, host *Peer, protocolID string, data []byte, re
 	if _, err = s.Write(data); err != nil {
 		// on error reset to make sure that the next stream is not affected by the same error
 		// reset forces close of both ends of the stream
-		if resetErr := s.Reset(); resetErr != nil {
-			return errors.Join(fmt.Errorf("writing data to p2p stream: %w", err), resetErr)
-		}
 		return fmt.Errorf("writing data to p2p stream: %w", err)
 	}
 	// done close the stream
-	if err = s.Close(); err != nil {
-		return fmt.Errorf("closing p2p stream: %w", err)
-	}
 	return nil
 }
 
@@ -174,6 +173,7 @@ func (n *LibP2PNetwork) streamHandlerForProtocol(protocolID string, ctor func() 
 					n.log.Warn(fmt.Sprintf("closing p2p stream %q", protocolID), logger.Error(err))
 				}
 			} else {
+				// stop writing to us, we have stopped reading
 				if err := s.Reset(); err != nil {
 					n.log.Warn(fmt.Sprintf("reset p2p stream %q", protocolID), logger.Error(err))
 				}
