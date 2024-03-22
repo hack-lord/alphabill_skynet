@@ -140,9 +140,10 @@ func sendMsg(ctx context.Context, host *Peer, protocolID string, data []byte, re
 	if err != nil {
 		return fmt.Errorf("open p2p stream: %w", err)
 	}
-	deadline, _ := ctx.Deadline()
-	if err = s.SetWriteDeadline(deadline); err != nil {
-		return fmt.Errorf("error setting write deadline: %w", err)
+	if deadline, ok := ctx.Deadline(); ok {
+		if err = s.SetWriteDeadline(deadline); err != nil {
+			return fmt.Errorf("error setting write deadline: %w", err)
+		}
 	}
 	if _, err = s.Write(data); err != nil {
 		// on error reset to make sure that the next stream is not affected by the same error
