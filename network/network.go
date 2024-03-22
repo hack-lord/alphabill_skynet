@@ -127,7 +127,6 @@ func (n *LibP2PNetwork) sendAsync(ctx context.Context, protocol *sendProtocolDat
 			// network nodes
 			sendCtx, cancel := context.WithTimeout(ctx, protocol.timeout)
 			defer cancel()
-			n.log.InfoContext(sendCtx, fmt.Sprintf("sending %s to %v", protocol.protocolID, receiverID))
 			if err := sendMsg(sendCtx, host, protocol.protocolID, data, receiverID); err != nil {
 				n.log.WarnContext(sendCtx, fmt.Sprintf("sending %s to %v", protocol.protocolID, receiverID), logger.Error(err))
 			}
