@@ -151,8 +151,6 @@ func sendMsg(ctx context.Context, host *Peer, protocolID string, data []byte, re
 		}
 	}
 	if _, err = s.Write(data); err != nil {
-		// on error reset to make sure that the next stream is not affected by the same error
-		// reset forces close of both ends of the stream
 		return fmt.Errorf("writing data to p2p stream: %w", err)
 	}
 	// done close the stream
