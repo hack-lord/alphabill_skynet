@@ -26,7 +26,7 @@ type BumpAllocator struct {
 }
 
 // align - aligns address to next multiple of 8 - i.e. 8 byte alignment
-// todo: check if wasm as explicit memory alignment requirements, perhaps could use no alignment - less wasted memory
+// todo: check if wasm has explicit memory alignment requirements, perhaps could use no alignment - less wasted memory
 func align(addr uint64) uint64 {
 	return ((addr + Alignment - 1) / Alignment) * Alignment
 }
@@ -98,7 +98,7 @@ func (f *BumpAllocator) bumpAlloc(size uint32, mem LinearMemory) (uint32, error)
 		// call Grow with diff a.k.a how many more we need
 		_, ok := mem.Grow(incPages - currentPages)
 		if !ok {
-			return 0, fmt.Errorf("linera memory grow error: from %d pages to %d pages", currentPages, incPages)
+			return 0, fmt.Errorf("linear memory grow error: from %d pages to %d pages", currentPages, incPages)
 		}
 		f.arenaSize = mem.Size()
 		// validation check, maybe remove later

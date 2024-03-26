@@ -127,6 +127,6 @@ func TestAllocateOverLimit(t *testing.T) {
 	ptr, err = allocator.Alloc(mem, 1024)
 	require.NoError(t, err)
 	ptr, err = allocator.Alloc(mem, WasmPageSize)
-	require.EqualError(t, err, "linera memory grow error: from 4 pages to 5 pages")
+	require.EqualError(t, err, "linear memory grow error: from 4 pages to 5 pages")
 	require.EqualValues(t, 0, ptr)
 }
