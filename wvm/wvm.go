@@ -86,6 +86,13 @@ type (
 	}
 )
 
+func MaxPages(mem api.MemoryDefinition) uint32 {
+	if maxPages, encoded := mem.Max(); encoded {
+		return maxPages
+	}
+	return allocator.MaxPages
+}
+
 /*
 AddVar adds the "obj" into list of variables in current context and returns it's handle
 */
@@ -123,7 +130,7 @@ func (vmCtx *VmContext) writeToMemory(mod api.Module, buf []byte) (uint64, error
 	}
 
 	size := uint32(len(buf))
-	addr, err := vmCtx.Alloc.Alloc(NewWazeroMemoryWrapper(mem), size)
+	addr, err := vmCtx.Alloc.Alloc(mem, size)
 	if err != nil {
 		return 0, fmt.Errorf("allocating memory: %w", err)
 
@@ -203,7 +210,8 @@ func (vm *WasmVM) Exec(ctx context.Context, fName string, predicate, args []byte
 
 	// do we need to create new mem manager for each predicate?
 	hb := api.DecodeU32(global.Get())
-	vm.ctx.Alloc = allocator.NewBumpAllocator(hb)
+	maxPages := MaxPages(m.Memory().Definition())
+	vm.ctx.Alloc = allocator.NewBumpAllocator(hb, maxPages)
 	vm.ctx.curPrg.mod = m
 	vm.ctx.curPrg.varIdx = handle_max_reserved
 	defer vm.ctx.EndEval()

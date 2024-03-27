@@ -10,14 +10,6 @@ type MemoryMockup struct {
 	maxWasmPages uint32
 }
 
-func (m *MemoryMockup) Max() uint32 {
-	return m.maxWasmPages
-}
-
-func (m *MemoryMockup) setMaxWasmPages(max uint32) {
-	m.maxWasmPages = max
-}
-
 func (m *MemoryMockup) pages() uint32 {
 	return uint32((uint64(len(m.data)) + uint64(WasmPageSize) - 1) / uint64(WasmPageSize))
 }
@@ -48,10 +40,10 @@ func (m *MemoryMockup) WriteUint64Le(offset uint32, v uint64) bool {
 	return true
 }
 
-func NewMemoryMock(t *testing.T, pages uint32) *MemoryMockup {
+func NewMemoryMock(t *testing.T, pages, pageLimit uint32) *MemoryMockup {
 	t.Helper()
 	return &MemoryMockup{
 		data:         make([]byte, pages*WasmPageSize),
-		maxWasmPages: MaxPages,
+		maxWasmPages: pageLimit,
 	}
 }

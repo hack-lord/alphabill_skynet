@@ -47,8 +47,8 @@ func Test_align(t *testing.T) {
 }
 
 func TestAllocate(t *testing.T) {
-	mem := NewMemoryMock(t, 1)
-	allocator := NewBumpAllocator(0)
+	mem := NewMemoryMock(t, 1, MaxPages)
+	allocator := NewBumpAllocator(0, MaxPages)
 
 	ptr1, err := allocator.Alloc(mem, 1)
 	require.NoError(t, err)
@@ -77,8 +77,8 @@ func TestAllocate(t *testing.T) {
 }
 
 func TestMemoryArenaChange(t *testing.T) {
-	mem := NewMemoryMock(t, 1)
-	allocator := NewBumpAllocator(8)
+	mem := NewMemoryMock(t, 1, MaxPages)
+	allocator := NewBumpAllocator(8, MaxPages)
 	ptr, err := allocator.Alloc(mem, 2*WasmPageSize+13)
 	require.NoError(t, err)
 	require.EqualValues(t, 8, ptr)
@@ -100,9 +100,9 @@ func TestMemoryArenaChange(t *testing.T) {
 }
 
 func TestAllocateOverLimit(t *testing.T) {
-	mem := NewMemoryMock(t, 1)
-	mem.setMaxWasmPages(4)
-	allocator := NewBumpAllocator(8)
+	const pageLimit = 4
+	mem := NewMemoryMock(t, 1, pageLimit)
+	allocator := NewBumpAllocator(8, pageLimit)
 	// allocate 1024 Kb
 	ptr, err := allocator.Alloc(mem, 1024)
 	require.NoError(t, err)
