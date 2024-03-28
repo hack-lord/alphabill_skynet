@@ -11,6 +11,7 @@ import (
 	"github.com/fxamacker/cbor/v2"
 	"github.com/stretchr/testify/require"
 	"github.com/tetratelabs/wazero"
+	"github.com/tetratelabs/wazero/api"
 
 	abcrypto "github.com/alphabill-org/alphabill/crypto"
 	"github.com/alphabill-org/alphabill/hash"
@@ -248,6 +249,18 @@ func TestNew(t *testing.T) {
 	require.NotNil(t, wvm)
 
 	require.NoError(t, wvm.Close(ctx))
+}
+
+func TestReadHeapBase(t *testing.T) {
+	obs := observability.Default(t)
+	env := &mockTxContext{
+		curRound: func() uint64 { return 1709683000 },
+	}
+	wvm, err := New(context.Background(), env, obs)
+	require.NoError(t, err)
+	m, err := wvm.runtime.Instantiate(context.Background(), addOneWasm)
+	heapBase := m.ExportedGlobal("__heap_base")
+	require.EqualValues(t, 8096, api.DecodeU32(heapBase.Get()))
 }
 
 func Benchmark_wazero_call_wasm_fn(b *testing.B) {
