@@ -49,7 +49,7 @@ func Test_align(t *testing.T) {
 func TestAllocate(t *testing.T) {
 	mem := NewMemoryMock(t, 1)
 	allocator := NewBumpAllocator(0, mem.Definition())
-
+	require.EqualValues(t, 0, allocator.HeapBase())
 	ptr1, err := allocator.Alloc(mem, 1)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, ptr1)
@@ -79,6 +79,9 @@ func TestAllocate(t *testing.T) {
 func TestMemoryArenaChange(t *testing.T) {
 	mem := NewMemoryMock(t, 1)
 	allocator := NewBumpAllocator(8, mem.Definition())
+	require.EqualValues(t, 8, allocator.HeapBase())
+	// start allocating from the end of stack space
+	require.EqualValues(t, allocator.freePtr, allocator.HeapBase())
 	ptr, err := allocator.Alloc(mem, 2*WasmPageSize+13)
 	require.NoError(t, err)
 	require.EqualValues(t, 8, ptr)
