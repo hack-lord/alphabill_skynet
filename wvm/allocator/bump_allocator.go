@@ -77,7 +77,7 @@ func (b *BumpAllocator) HeapBase() uint32 {
 	return b.heapBase
 }
 
-func (b *BumpAllocator) Free(_ LinearMemory, _ uint32) (err error) {
+func (b *BumpAllocator) Free(_ LinearMemory, _ uint32) error {
 	if b.errState != nil {
 		return b.errState
 	}
