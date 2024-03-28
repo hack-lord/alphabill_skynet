@@ -270,7 +270,7 @@ func TestReadHeapBase(t *testing.T) {
 	require.Error(t, err)
 	m, err := wvm.runtime.Instantiate(context.Background(), ticketsWasm)
 	require.EqualValues(t, 8400, m.ExportedGlobal("__heap_base").Get())
-	require.EqualValues(t, 8400, wvm.ctx.Alloc.(*allocator.BumpAllocator).HeapBase())
+	require.EqualValues(t, 8400, wvm.ctx.MemMngr.(*allocator.BumpAllocator).HeapBase())
 }
 
 func Benchmark_wazero_call_wasm_fn(b *testing.B) {

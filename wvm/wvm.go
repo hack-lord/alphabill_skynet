@@ -43,7 +43,7 @@ type (
 	}
 
 	VmContext struct {
-		Alloc   Allocator
+		MemMngr Allocator
 		Storage keyvaluedb.KeyValueDB
 		curPrg  *EvalContext
 		encoder Encoder
@@ -125,7 +125,7 @@ func (vmCtx *VmContext) writeToMemory(mod api.Module, buf []byte) (uint64, error
 	}
 
 	size := uint32(len(buf))
-	addr, err := vmCtx.Alloc.Alloc(mem, size)
+	addr, err := vmCtx.MemMngr.Alloc(mem, size)
 	if err != nil {
 		return 0, fmt.Errorf("allocating memory: %w", err)
 
@@ -205,7 +205,7 @@ func (vm *WasmVM) Exec(ctx context.Context, fName string, predicate, args []byte
 
 	// do we need to create new mem manager for each predicate?
 	hb := api.DecodeU32(global.Get())
-	vm.ctx.Alloc = allocator.NewBumpAllocator(hb, m.Memory().Definition())
+	vm.ctx.MemMngr = allocator.NewBumpAllocator(hb, m.Memory().Definition())
 	vm.ctx.curPrg.mod = m
 	vm.ctx.curPrg.varIdx = handle_max_reserved
 	defer vm.ctx.EndEval()
