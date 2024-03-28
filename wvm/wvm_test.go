@@ -8,11 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fxamacker/cbor/v2"
-	"github.com/stretchr/testify/require"
-	"github.com/tetratelabs/wazero"
-	"github.com/tetratelabs/wazero/api"
-
 	abcrypto "github.com/alphabill-org/alphabill/crypto"
 	"github.com/alphabill-org/alphabill/hash"
 	testblock "github.com/alphabill-org/alphabill/internal/testutils/block"
@@ -24,6 +19,10 @@ import (
 	"github.com/alphabill-org/alphabill/txsystem/money"
 	"github.com/alphabill-org/alphabill/txsystem/tokens"
 	"github.com/alphabill-org/alphabill/types"
+	"github.com/alphabill-org/alphabill/wvm/allocator"
+	"github.com/fxamacker/cbor/v2"
+	"github.com/stretchr/testify/require"
+	"github.com/tetratelabs/wazero"
 )
 
 //go:embed testdata/add_one/target/wasm32-unknown-unknown/release/add_one.wasm
@@ -258,9 +257,11 @@ func TestReadHeapBase(t *testing.T) {
 	}
 	wvm, err := New(context.Background(), env, obs)
 	require.NoError(t, err)
-	m, err := wvm.runtime.Instantiate(context.Background(), addOneWasm)
-	heapBase := m.ExportedGlobal("__heap_base")
-	require.EqualValues(t, 8096, api.DecodeU32(heapBase.Get()))
+	_, err = wvm.Exec(context.Background(), "bearer_invariant", ticketsWasm, nil, nil)
+	require.Error(t, err)
+	m, err := wvm.runtime.Instantiate(context.Background(), ticketsWasm)
+	require.EqualValues(t, 8496, m.ExportedGlobal("__heap_base").Get())
+	require.EqualValues(t, 8496, wvm.ctx.Alloc.(*allocator.BumpAllocator).HeapBase())
 }
 
 func Benchmark_wazero_call_wasm_fn(b *testing.B) {

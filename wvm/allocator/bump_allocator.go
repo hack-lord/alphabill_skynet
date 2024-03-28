@@ -73,6 +73,10 @@ func (b *BumpAllocator) Alloc(mem LinearMemory, size uint32) (ptr uint32, err er
 	return b.bumpAlloc(size, mem)
 }
 
+func (b *BumpAllocator) HeapBase() uint32 {
+	return b.heapBase
+}
+
 func (b *BumpAllocator) Free(_ LinearMemory, _ uint32) (err error) {
 	if b.errState != nil {
 		return b.errState
