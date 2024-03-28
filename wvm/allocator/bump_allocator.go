@@ -85,11 +85,11 @@ func (b *BumpAllocator) Free(_ LinearMemory, _ uint32) error {
 	return nil
 }
 
-func (b *BumpAllocator) monitorArenaSize(currSize uint32) error {
-	if b.arenaSize > currSize && b.freePtr > currSize {
-		return fmt.Errorf("memory arena has shrunk unexpectedly from %v to %v", b.arenaSize, currSize)
+func (b *BumpAllocator) monitorArenaSize(currentSize uint32) error {
+	if b.arenaSize > currentSize && b.freePtr > currentSize {
+		return fmt.Errorf("memory arena has shrunk unexpectedly from %v to %v", b.arenaSize, currentSize)
 	}
-	b.arenaSize = currSize
+	b.arenaSize = currentSize
 	return nil
 }
 
