@@ -261,7 +261,9 @@ func hostAPI(f func(vec *VmContext, mod api.Module, stack []uint64) error) api.G
 		}
 		if err := f(rtCtx, mod, stack); err != nil {
 			rtCtx.log.ErrorContext(ctx, "host API returned error", logger.Error(err))
-			rtCtx.curPrg.mod.CloseWithExitCode(ctx, 0xBAD00BAD)
+			if err = rtCtx.curPrg.mod.CloseWithExitCode(ctx, 0xBAD00BAD); err != nil {
+				rtCtx.log.ErrorContext(ctx, "host API close with exit", logger.Error(err))
+			}
 		}
 	}
 }
