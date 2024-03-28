@@ -38,8 +38,8 @@ const (
 
 type (
 	Allocator interface {
-		Alloc(mem allocator.LinearMemory, size uint32) (uint32, error)
-		Free(mem allocator.LinearMemory, ptr uint32) error
+		Alloc(mem allocator.Memory, size uint32) (uint32, error)
+		Free(mem allocator.Memory, ptr uint32) error
 	}
 
 	VmContext struct {

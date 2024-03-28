@@ -57,7 +57,7 @@ func NewBumpAllocator(heapBase uint32, info MemInfo) *BumpAllocator {
 	}
 }
 
-func (b *BumpAllocator) Alloc(mem LinearMemory, size uint32) (ptr uint32, err error) {
+func (b *BumpAllocator) Alloc(mem Memory, size uint32) (ptr uint32, err error) {
 	if b.errState != nil {
 		return 0, b.errState
 	}
@@ -77,7 +77,7 @@ func (b *BumpAllocator) HeapBase() uint32 {
 	return b.heapBase
 }
 
-func (b *BumpAllocator) Free(_ LinearMemory, _ uint32) error {
+func (b *BumpAllocator) Free(_ Memory, _ uint32) error {
 	if b.errState != nil {
 		return b.errState
 	}
@@ -93,7 +93,7 @@ func (b *BumpAllocator) monitorArenaSize(currentSize uint32) error {
 	return nil
 }
 
-func (b *BumpAllocator) bumpAlloc(size uint32, mem LinearMemory) (uint32, error) {
+func (b *BumpAllocator) bumpAlloc(size uint32, mem Memory) (uint32, error) {
 	newFreePtr := align(uint64(b.freePtr) + uint64(size))
 	if newFreePtr > math.MaxUint32 {
 		return 0, fmt.Errorf("out of memory")
