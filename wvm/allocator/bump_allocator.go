@@ -26,6 +26,13 @@ type BumpAllocator struct {
 	errState     error
 }
 
+func maxPages(info MemInfo) uint32 {
+	if maxPages, encoded := info.Max(); encoded {
+		return maxPages
+	}
+	return MaxPages
+}
+
 // align - aligns address to next multiple of 8 - i.e. 8 byte alignment
 // todo: check if wasm has explicit memory alignment requirements, perhaps could use no alignment - less wasted memory
 func align(addr uint64) uint64 {
@@ -41,11 +48,11 @@ func addrToPage(addr uint64) (uint32, error) {
 	return uint32(pageNo), nil
 }
 
-func NewBumpAllocator(heapBase uint32, maxPages uint32) *BumpAllocator {
+func NewBumpAllocator(heapBase uint32, info MemInfo) *BumpAllocator {
 	return &BumpAllocator{
 		heapBase:     heapBase,
 		freePtr:      heapBase,
-		memPageLimit: maxPages,
+		memPageLimit: maxPages(info),
 		stats:        statistics{},
 	}
 }

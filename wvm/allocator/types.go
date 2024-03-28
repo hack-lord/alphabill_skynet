@@ -6,3 +6,7 @@ type LinearMemory interface {
 	WriteUint64Le(offset uint32, v uint64) bool
 	Grow(deltaPages uint32) (previousPages uint32, ok bool)
 }
+
+type MemInfo interface {
+	Max() (uint32, bool)
+}
