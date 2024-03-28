@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/alphabill-org/alphabill/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -54,6 +55,8 @@ func TestAllocate(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 0, ptr1)
 	freePtr := allocator.freePtr
+	// check alignment
+	require.EqualValues(t, 0, freePtr%8)
 	require.EqualValues(t, freePtr, 8)
 	require.EqualValues(t, allocator.stats.allocCount, 1)
 	require.EqualValues(t, allocator.stats.allocDataSize, 1)
@@ -132,4 +135,16 @@ func TestAllocateOverLimit(t *testing.T) {
 	ptr, err = allocator.Alloc(mem, WasmPageSize)
 	require.EqualError(t, err, "linear memory grow error: from 4 pages to 5 pages")
 	require.EqualValues(t, 0, ptr)
+}
+
+func TestReadWrite(t *testing.T) {
+	mem := NewMemoryMock(t, 1)
+	allocator := NewBumpAllocator(8, mem.Definition())
+	// allocate 1024 Kb
+	ptr, err := allocator.Alloc(mem, 8)
+	require.NoError(t, err)
+	mem.Write(ptr, util.Uint64ToBytes(0xaabbccddee))
+	data, ok := mem.Read(ptr, 8)
+	require.True(t, ok)
+	require.EqualValues(t, 0xaabbccddee, util.BytesToUint64(data))
 }

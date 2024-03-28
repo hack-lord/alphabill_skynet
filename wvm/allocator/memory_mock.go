@@ -1,7 +1,6 @@
 package allocator
 
 import (
-	"encoding/binary"
 	"testing"
 )
 
@@ -45,14 +44,12 @@ func (m *MemoryMockup) Grow(pages uint32) (uint32, bool) {
 	return prevPages, true
 }
 
-func (m *MemoryMockup) ReadUint64Le(offset uint32) (uint64, bool) {
-	return binary.LittleEndian.Uint64(m.data[offset : offset+8]), true
+func (m *MemoryMockup) Read(offset, cnt uint32) ([]byte, bool) {
+	return m.data[offset : offset+cnt], true
 }
 
-func (m *MemoryMockup) WriteUint64Le(offset uint32, v uint64) bool {
-	encoded := make([]byte, 8)
-	binary.LittleEndian.PutUint64(encoded, v)
-	copy(m.data[offset:offset+8], encoded)
+func (m *MemoryMockup) Write(offset uint32, data []byte) bool {
+	copy(m.data[offset:offset+8], data)
 	return true
 }
 
