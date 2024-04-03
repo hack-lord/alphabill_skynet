@@ -285,7 +285,6 @@ func Test_LibP2PNetwork_SendMsgs(t *testing.T) {
 			container.PushBack(&testStrMsg{Info: fmt.Sprintf("make a test message that is a bit longer to simulate real messages: test message %v", i)})
 		}
 		require.EqualError(t, nw1.SendMsgs(context.Background(), container, peer2.ID()), "stream write error stream reset\nclosing p2p stream: stream reset")
-
 	})
 	t.Run("unknown protocol type", func(t *testing.T) {
 		obs := observability.Default(t)
@@ -305,7 +304,6 @@ func Test_LibP2PNetwork_SendMsgs(t *testing.T) {
 		for i := 1; i <= 4; i++ {
 			container.PushBack(&testStrMsg{Info: fmt.Sprintf("make a test message that is a bit longer to simulate real messages: test message %v", i)})
 		}
-		// NB! all messages are sent successfully?
 		require.EqualError(t, nw1.SendMsgs(context.Background(), container, peer2.ID()), "no protocol registered for messages of type *network.testStrMsg")
 	})
 	t.Run("not able to dial", func(t *testing.T) {
@@ -323,7 +321,6 @@ func Test_LibP2PNetwork_SendMsgs(t *testing.T) {
 		for i := 1; i <= 4; i++ {
 			container.PushBack(&testStrMsg{Info: fmt.Sprintf("make a test message that is a bit longer to simulate real messages: test message %v", i)})
 		}
-		// NB! all messages are sent successfully?
 		require.EqualError(t, nw1.SendMsgs(context.Background(), container, peer2.ID()), "opening p2p stream failed to find any peer in table")
 	})
 }
