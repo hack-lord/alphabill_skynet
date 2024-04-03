@@ -21,6 +21,11 @@ import (
 )
 
 type (
+	MsgFifo interface {
+		Len() int
+		PopFront() any
+	}
+
 	sendProtocolDescription struct {
 		protocolID string
 		msgType    any           // value of the message type of the protocol
@@ -105,6 +110,57 @@ func (n *LibP2PNetwork) Send(ctx context.Context, msg any, receivers ...peer.ID)
 	return nil
 }
 
+// SendMsgs - synchronously send messages to peer, can block if out-buffer becomes full.
+// The method returns success when all bytes have been written to the output buffer.
+// If during writing, the other side closes or resets the stream, an error will be returned.
+// However, this does not mean application level synchronization; messages can still be lost without the sender knowing.
+func (n *LibP2PNetwork) SendMsgs(ctx context.Context, msgs MsgFifo, receiver peer.ID) (err error) {
+	ctx, span := n.tracer.Start(ctx, "network.SenMsgs", trace.WithAttributes(attribute.Stringer("receiver", receiver)))
+	defer span.End()
+	var stream libp2pNetwork.Stream
+	var timeout time.Duration
+	for msgs.Len() > 0 {
+		// create a stream with first message
+		msg := msgs.PopFront()
+
+		if stream == nil {
+			p, f := n.sendProtocols[reflect.TypeOf(msg)]
+			if !f {
+				return fmt.Errorf("no protocol registered for messages of type %T", msg)
+			}
+			stream, err = n.self.CreateStream(ctx, receiver, p.protocolID)
+			timeout = p.timeout
+			if err != nil {
+				return fmt.Errorf("opening p2p stream %w", err)
+			}
+			defer func() {
+				if closeErr := stream.Close(); closeErr != nil {
+					err = errors.Join(err, fmt.Errorf("closing p2p stream: %w", closeErr))
+				}
+			}()
+		}
+		var data []byte
+		data, err = serializeMsg(msg)
+		if err != nil {
+			// if serialization fails, then still try to send the rest
+			err = errors.Join(err, fmt.Errorf("serializing message: %w", err))
+			continue
+		}
+		// set stream write timeout from protocol or ctx timeout, whichever is earliest
+		deadline := time.Now().Add(timeout)
+		if dl, ok := ctx.Deadline(); ok && dl.Before(deadline) {
+			deadline = dl
+		}
+		// write message
+		if _, wErr := stream.Write(data); wErr != nil {
+			// return error on stream write error; it is unlikely that the other side is still able to process messages
+			err = errors.Join(err, fmt.Errorf("stream write error %w", wErr))
+			return
+		}
+	}
+	return
+}
+
 func (n *LibP2PNetwork) sendAsync(ctx context.Context, protocol *sendProtocolData, msg any, receivers []peer.ID) error {
 	ctx, span := n.tracer.Start(ctx, "LibP2PNetwork.sendAsync")
 	defer span.End()
@@ -118,7 +174,9 @@ func (n *LibP2PNetwork) sendAsync(ctx context.Context, protocol *sendProtocolDat
 		// loop-back for self-messages as libp2p would otherwise error:
 		// open stream error: failed to dial: dial to self attempted
 		if receiver == n.self.ID() {
-			n.receivedMsg(n.self.ID(), protocol.protocolID, msg)
+			if err = n.receivedMsg(n.self.ID(), protocol.protocolID, msg); err != nil {
+				n.log.WarnContext(ctx, "loop back message failed: %v", err)
+			}
 			continue
 		}
 		go func(host *Peer, receiverID peer.ID) {
@@ -154,7 +212,7 @@ func sendMsg(ctx context.Context, host *Peer, protocolID string, data []byte, re
 		return fmt.Errorf("writing data to p2p stream: %w", err)
 	}
 	// done close the stream
-	return nil
+	return
 }
 
 /*
@@ -193,18 +251,23 @@ func (n *LibP2PNetwork) streamHandlerForProtocol(protocolID string, ctor func() 
 				n.log.Warn(fmt.Sprintf("reading %q message", protocolID), logger.Error(err))
 				return
 			}
-			n.receivedMsg(s.Conn().RemotePeer(), protocolID, msg)
+			if err = n.receivedMsg(s.Conn().RemotePeer(), protocolID, msg); err != nil {
+				// log error, but also close the stream to signal that node is not able to consume more messages
+				n.log.Warn(fmt.Sprintf("receive channel full: %v", err))
+				return
+			}
 		}
 		success = true
 	}
 }
 
-func (n *LibP2PNetwork) receivedMsg(from peer.ID, protocolID string, msg any) {
+func (n *LibP2PNetwork) receivedMsg(from peer.ID, protocolID string, msg any) error {
 	select {
 	case n.receivedMsgs <- msg:
 	default:
-		n.log.Warn(fmt.Sprintf("dropping %s message from %s because of slow consumer", protocolID, from))
+		return fmt.Errorf("dropping %s message from %s because of slow consumer", protocolID, from)
 	}
+	return nil
 }
 
 func (n *LibP2PNetwork) registerReceiveProtocols(protocols []receiveProtocolDescription) error {
