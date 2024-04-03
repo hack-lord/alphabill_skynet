@@ -110,11 +110,10 @@ func (n *LibP2PNetwork) Send(ctx context.Context, msg any, receivers ...peer.ID)
 	return nil
 }
 
-// SendMsgs - synchronously send a collection of the same type messages to peer.
-// The method can block if out-buffer becomes full.
-// Returns successfully when all bytes have been written to the output buffer.
-// If during writing, the other side closes or resets the stream, an error will be returned.
-// However, this does not mean application level synchronization; messages can still be lost without the sender knowing.
+// SendMsgs - synchronously send a collection of the same type messages to peer (method can block)
+// Returns successfully when all bytes have been written to the output buffer
+// If during writing, the other side closes or resets the stream, an error will be returned
+// However, this does not mean application level synchronization; messages can still be lost without the sender knowing
 func (n *LibP2PNetwork) SendMsgs(ctx context.Context, messages MsgQueue, receiver peer.ID) (err error) {
 	ctx, span := n.tracer.Start(ctx, "network.SenMsgs", trace.WithAttributes(attribute.Stringer("receiver", receiver)))
 	defer span.End()
@@ -150,6 +149,9 @@ func (n *LibP2PNetwork) SendMsgs(ctx context.Context, messages MsgQueue, receive
 		deadline := time.Now().Add(timeout)
 		if dl, ok := ctx.Deadline(); ok && dl.Before(deadline) {
 			deadline = dl
+		}
+		if err = stream.SetWriteDeadline(deadline); err != nil {
+			return fmt.Errorf("error setting write deadline: %w", err)
 		}
 		// write message
 		if _, wErr := stream.Write(data); wErr != nil {
