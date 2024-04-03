@@ -110,8 +110,9 @@ func (n *LibP2PNetwork) Send(ctx context.Context, msg any, receivers ...peer.ID)
 	return nil
 }
 
-// SendMsgs - synchronously send messages to peer, can block if out-buffer becomes full.
-// The method returns success when all bytes have been written to the output buffer.
+// SendMsgs - synchronously send a collection of the same type messages to peer.
+// The method can block if out-buffer becomes full.
+// Returns successfully when all bytes have been written to the output buffer.
 // If during writing, the other side closes or resets the stream, an error will be returned.
 // However, this does not mean application level synchronization; messages can still be lost without the sender knowing.
 func (n *LibP2PNetwork) SendMsgs(ctx context.Context, msgs MsgFifo, receiver peer.ID) (err error) {
