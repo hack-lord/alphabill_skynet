@@ -281,7 +281,7 @@ func Test_LibP2PNetwork_SendMsgs(t *testing.T) {
 		require.NoError(t, nw1.registerSendProtocol(sendProtocolDescription{protocolID: "test/p", msgType: testStrMsg{}, timeout: 100 * time.Millisecond}))
 		require.NoError(t, nw2.registerReceiveProtocol(receiveProtocolDescription{protocolID: "test/p", typeFn: func() any { return &testStrMsg{} }}))
 		container := &testMsgContainer{}
-		for i := 1; i <= 1000; i++ {
+		for i := 1; i <= 10000; i++ {
 			container.PushBack(&testStrMsg{Info: fmt.Sprintf("make a test message that is a bit longer to simulate real messages: test message %v", i)})
 		}
 		require.EqualError(t, nw1.SendMsgs(context.Background(), container, peer2.ID()), "stream write error stream reset\nclosing p2p stream: stream reset")
