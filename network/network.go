@@ -21,7 +21,7 @@ import (
 )
 
 type (
-	MsgFifo interface {
+	MsgQueue interface {
 		Len() int
 		PopFront() any
 	}
@@ -115,15 +115,14 @@ func (n *LibP2PNetwork) Send(ctx context.Context, msg any, receivers ...peer.ID)
 // Returns successfully when all bytes have been written to the output buffer.
 // If during writing, the other side closes or resets the stream, an error will be returned.
 // However, this does not mean application level synchronization; messages can still be lost without the sender knowing.
-func (n *LibP2PNetwork) SendMsgs(ctx context.Context, msgs MsgFifo, receiver peer.ID) (err error) {
+func (n *LibP2PNetwork) SendMsgs(ctx context.Context, messages MsgQueue, receiver peer.ID) (err error) {
 	ctx, span := n.tracer.Start(ctx, "network.SenMsgs", trace.WithAttributes(attribute.Stringer("receiver", receiver)))
 	defer span.End()
 	var stream libp2pNetwork.Stream
 	var timeout time.Duration
-	for msgs.Len() > 0 {
+	for messages.Len() > 0 {
+		msg := messages.PopFront()
 		// create a stream with first message
-		msg := msgs.PopFront()
-
 		if stream == nil {
 			p, f := n.sendProtocols[reflect.TypeOf(msg)]
 			if !f {
