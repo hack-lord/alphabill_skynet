@@ -175,6 +175,7 @@ func (n *LibP2PNetwork) sendAsync(ctx context.Context, protocol *sendProtocolDat
 		// open stream error: failed to dial: dial to self attempted
 		if receiver == n.self.ID() {
 			if err = n.receivedMsg(n.self.ID(), protocol.protocolID, msg); err != nil {
+				// todo: this must be improved loop-back should not fail
 				n.log.WarnContext(ctx, "loop back message failed: %v", err)
 			}
 			continue
@@ -252,7 +253,7 @@ func (n *LibP2PNetwork) streamHandlerForProtocol(protocolID string, ctor func() 
 				return
 			}
 			if err = n.receivedMsg(s.Conn().RemotePeer(), protocolID, msg); err != nil {
-				// log error, but also close the stream to signal that node is not able to consume more messages
+				// log error, but also reset the stream to signal that node is not able to consume more messages
 				n.log.Warn(fmt.Sprintf("receive channel full: %v", err))
 				return
 			}
