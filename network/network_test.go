@@ -17,15 +17,15 @@ type testStrMsg struct {
 	Info string
 }
 
-type testMsgQueue struct {
+type testMsgContainer struct {
 	msgs []*testStrMsg
 }
 
-func (t *testMsgQueue) PushBack(msg *testStrMsg) {
+func (t *testMsgContainer) PushBack(msg *testStrMsg) {
 	t.msgs = append(t.msgs, msg)
 }
 
-func (t *testMsgQueue) PopFront() any {
+func (t *testMsgContainer) PopFront() any {
 	if len(t.msgs) == 0 {
 		panic("pop on empty container")
 	}
@@ -34,7 +34,7 @@ func (t *testMsgQueue) PopFront() any {
 	return msg
 }
 
-func (t *testMsgQueue) Len() int {
+func (t *testMsgContainer) Len() int {
 	return len(t.msgs)
 }
 
@@ -225,11 +225,11 @@ func Test_LibP2PNetwork_SendMsgs(t *testing.T) {
 
 		require.NoError(t, nw1.registerSendProtocol(sendProtocolDescription{protocolID: "test/p", msgType: testStrMsg{}, timeout: 100 * time.Millisecond}))
 		require.NoError(t, nw2.registerReceiveProtocol(receiveProtocolDescription{protocolID: "test/p", typeFn: func() any { return &testStrMsg{} }}))
-		container := &testMsgQueue{}
-		container.PushBack(&testStrMsg{Info: "test message1"})
-		container.PushBack(&testStrMsg{Info: "test message2"})
+		msgQueue := &testMsgContainer{}
+		msgQueue.PushBack(&testStrMsg{Info: "test message1"})
+		msgQueue.PushBack(&testStrMsg{Info: "test message2"})
 
-		require.NoError(t, nw1.SendMsgs(context.Background(), container, peer2.ID()))
+		require.NoError(t, nw1.SendMsgs(context.Background(), msgQueue, peer2.ID()))
 		// wait for messages received
 		require.Eventually(t, func() bool { return len(nw2.receivedMsgs) == 2 }, test.WaitDuration, test.WaitTick)
 		// message one
@@ -252,14 +252,14 @@ func Test_LibP2PNetwork_SendMsgs(t *testing.T) {
 
 		require.NoError(t, nw1.registerSendProtocol(sendProtocolDescription{protocolID: "test/p", msgType: testStrMsg{}, timeout: 100 * time.Millisecond}))
 		require.NoError(t, nw2.registerReceiveProtocol(receiveProtocolDescription{protocolID: "test/p", typeFn: func() any { return &testStrMsg{} }}))
-		container := &testMsgQueue{}
+		msgQueue := &testMsgContainer{}
 		for i := 1; i <= 4; i++ {
-			container.PushBack(&testStrMsg{Info: fmt.Sprintf("make a test message that is a bit longer to simulate real messages: test message %v", i)})
+			msgQueue.PushBack(&testStrMsg{Info: fmt.Sprintf("make a test message that is a bit longer to simulate real messages: test message %v", i)})
 		}
 		// NB! All messages are sent successfully? - actually, no 3 messages get dropped.
 		// Since all messages were successfully added to the out buffer and also received,
 		// but later dropped - there is no error here.
-		require.NoError(t, nw1.SendMsgs(context.Background(), container, peer2.ID()))
+		require.NoError(t, nw1.SendMsgs(context.Background(), msgQueue, peer2.ID()))
 		// wait for messages received
 		require.Eventually(t, func() bool { return len(nw2.receivedMsgs) == 1 }, test.WaitDuration, test.WaitTick)
 		// message one
@@ -280,11 +280,11 @@ func Test_LibP2PNetwork_SendMsgs(t *testing.T) {
 
 		require.NoError(t, nw1.registerSendProtocol(sendProtocolDescription{protocolID: "test/p", msgType: testStrMsg{}, timeout: 100 * time.Millisecond}))
 		require.NoError(t, nw2.registerReceiveProtocol(receiveProtocolDescription{protocolID: "test/p", typeFn: func() any { return &testStrMsg{} }}))
-		container := &testMsgQueue{}
+		msgQueue := &testMsgContainer{}
 		for i := 1; i <= 10000; i++ {
-			container.PushBack(&testStrMsg{Info: fmt.Sprintf("make a test message that is a bit longer to simulate real messages: test message %v", i)})
+			msgQueue.PushBack(&testStrMsg{Info: fmt.Sprintf("make a test message that is a bit longer to simulate real messages: test message %v", i)})
 		}
-		require.EqualError(t, nw1.SendMsgs(context.Background(), container, peer2.ID()), "stream write error stream reset\nclosing p2p stream: stream reset")
+		require.EqualError(t, nw1.SendMsgs(context.Background(), msgQueue, peer2.ID()), "stream write error stream reset\nclosing p2p stream: stream reset")
 	})
 	t.Run("unknown protocol type", func(t *testing.T) {
 		obs := observability.Default(t)
@@ -300,11 +300,11 @@ func Test_LibP2PNetwork_SendMsgs(t *testing.T) {
 		type fooMsg struct{}
 		require.NoError(t, nw1.registerSendProtocol(sendProtocolDescription{protocolID: "test/p", msgType: fooMsg{}, timeout: 100 * time.Millisecond}))
 		require.NoError(t, nw2.registerReceiveProtocol(receiveProtocolDescription{protocolID: "test/p", typeFn: func() any { return &testStrMsg{} }}))
-		container := &testMsgQueue{}
+		msgQueue := &testMsgContainer{}
 		for i := 1; i <= 4; i++ {
-			container.PushBack(&testStrMsg{Info: fmt.Sprintf("make a test message that is a bit longer to simulate real messages: test message %v", i)})
+			msgQueue.PushBack(&testStrMsg{Info: fmt.Sprintf("make a test message that is a bit longer to simulate real messages: test message %v", i)})
 		}
-		require.EqualError(t, nw1.SendMsgs(context.Background(), container, peer2.ID()), "no protocol registered for messages of type *network.testStrMsg")
+		require.EqualError(t, nw1.SendMsgs(context.Background(), msgQueue, peer2.ID()), "no protocol registered for messages of type *network.testStrMsg")
 	})
 	t.Run("not able to dial", func(t *testing.T) {
 		obs := observability.Default(t)
@@ -317,11 +317,11 @@ func Test_LibP2PNetwork_SendMsgs(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, nw1.registerSendProtocol(sendProtocolDescription{protocolID: "test/p", msgType: testStrMsg{}, timeout: 100 * time.Millisecond}))
 		require.NoError(t, nw2.registerReceiveProtocol(receiveProtocolDescription{protocolID: "test/p", typeFn: func() any { return &testStrMsg{} }}))
-		container := &testMsgQueue{}
+		msgQueue := &testMsgContainer{}
 		for i := 1; i <= 4; i++ {
-			container.PushBack(&testStrMsg{Info: fmt.Sprintf("make a test message that is a bit longer to simulate real messages: test message %v", i)})
+			msgQueue.PushBack(&testStrMsg{Info: fmt.Sprintf("make a test message that is a bit longer to simulate real messages: test message %v", i)})
 		}
-		require.EqualError(t, nw1.SendMsgs(context.Background(), container, peer2.ID()), "opening p2p stream failed to find any peer in table")
+		require.EqualError(t, nw1.SendMsgs(context.Background(), msgQueue, peer2.ID()), "opening p2p stream failed to find any peer in table")
 	})
 }
 
@@ -383,7 +383,7 @@ func Test_LibP2PNetwork_sendMsg(t *testing.T) {
 		// need to init peerstores manually, otherwise peers can't dial each other...
 		peer1.Network().Peerstore().AddAddrs(peer2.ID(), peer2.MultiAddresses(), peerstore.PermanentAddrTTL)
 		// ...but close peer2 network connection
-		peer2.Close()
+		require.NoError(t, peer2.Close())
 
 		msg := []byte{3, 2, 1}
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
