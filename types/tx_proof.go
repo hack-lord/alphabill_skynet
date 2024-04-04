@@ -98,7 +98,7 @@ func VerifyTxProof(proof *TxProof, txRecord *TransactionRecord, trustBase map[st
 
 	//UC.IR.hB = h
 	if !bytes.Equal(blockHash, proof.UnicityCertificate.InputRecord.BlockHash) {
-		return fmt.Errorf("invalid chain root hash")
+		return fmt.Errorf("proof block hash does not match to block hash in unicity certificate")
 	}
 	return nil
 }

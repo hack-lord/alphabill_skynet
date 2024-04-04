@@ -16,13 +16,13 @@ var (
 )
 
 type GenesisPartitionRecord struct {
-	_                       struct{}                  `cbor:",toarray"`
-	Nodes                   []*PartitionNode          `json:"nodes,omitempty"`
-	Certificate             *types.UnicityCertificate `json:"certificate,omitempty"`
-	SystemDescriptionRecord *SystemDescriptionRecord  `json:"system_description_record,omitempty"`
+	_                       struct{}                       `cbor:",toarray"`
+	Nodes                   []*PartitionNode               `json:"nodes,omitempty"`
+	Certificate             *types.UnicityCertificate      `json:"certificate,omitempty"`
+	SystemDescriptionRecord *types.SystemDescriptionRecord `json:"system_description_record,omitempty"`
 }
 
-func (x *GenesisPartitionRecord) GetSystemDescriptionRecord() *SystemDescriptionRecord {
+func (x *GenesisPartitionRecord) GetSystemDescriptionRecord() *types.SystemDescriptionRecord {
 	if x == nil {
 		return nil
 	}

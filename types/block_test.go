@@ -4,6 +4,7 @@ import (
 	"crypto"
 	"testing"
 
+	testsig "github.com/alphabill-org/alphabill/internal/testutils/sig"
 	"github.com/stretchr/testify/require"
 )
 
@@ -130,6 +131,74 @@ func TestBlock_IsValid(t *testing.T) {
 			UnicityCertificate: &UnicityCertificate{},
 		}
 		require.EqualError(t, b.IsValid(crypto.SHA256, nil), "unicity certificate validation failed: input record error: input record is nil")
+	})
+	t.Run("valid block", func(t *testing.T) {
+		signer, _ := testsig.CreateSignerAndVerifier(t)
+		sdrs := &SystemDescriptionRecord{
+			SystemIdentifier: systemID,
+			T2Timeout:        2500,
+		}
+		inputRecord := &InputRecord{
+			PreviousHash:    []byte{0, 0, 1},
+			Hash:            []byte{0, 0, 2},
+			SummaryValue:    []byte{0, 0, 4},
+			RoundNumber:     1,
+			SumOfEarnedFees: 2,
+		}
+		txr1 := createTransactionRecord(createTxOrder(t), 1)
+		txr2 := createTransactionRecord(createTxOrder(t), 2)
+		b := &Block{
+			Header: &Header{
+				SystemID:          systemID,
+				ProposerID:        "test",
+				PreviousBlockHash: []byte{1, 2, 3},
+			},
+			Transactions: []*TransactionRecord{txr1, txr2},
+			UnicityCertificate: &UnicityCertificate{
+				InputRecord: inputRecord,
+			},
+		}
+		// calculate block hash
+		blockhash, err := b.Hash(crypto.SHA256)
+		require.NoError(t, err)
+		inputRecord.BlockHash = blockhash
+		b.UnicityCertificate = createUnicityCertificate(t, "test", signer, inputRecord, sdrs)
+		require.NoError(t, b.IsValid(crypto.SHA256, sdrs.Hash(crypto.SHA256)))
+	})
+	t.Run("invalid block hash", func(t *testing.T) {
+		signer, _ := testsig.CreateSignerAndVerifier(t)
+		sdrs := &SystemDescriptionRecord{
+			SystemIdentifier: systemID,
+			T2Timeout:        2500,
+		}
+		inputRecord := &InputRecord{
+			PreviousHash:    []byte{0, 0, 1},
+			Hash:            []byte{0, 0, 2},
+			SummaryValue:    []byte{0, 0, 4},
+			RoundNumber:     1,
+			SumOfEarnedFees: 2,
+		}
+		txr1 := createTransactionRecord(createTxOrder(t), 1)
+		txr2 := createTransactionRecord(createTxOrder(t), 2)
+		b := &Block{
+			Header: &Header{
+				SystemID:          systemID,
+				ProposerID:        "test",
+				PreviousBlockHash: []byte{1, 2, 3},
+			},
+			Transactions: []*TransactionRecord{txr1, txr2},
+			UnicityCertificate: &UnicityCertificate{
+				InputRecord: inputRecord,
+			},
+		}
+		// calculate block hash
+		blockhash, err := b.Hash(crypto.SHA256)
+		require.NoError(t, err)
+		inputRecord.BlockHash = blockhash
+		b.UnicityCertificate = createUnicityCertificate(t, "test", signer, inputRecord, sdrs)
+		// remove a tx from block and make sure that the validation fails
+		b.Transactions = b.Transactions[1:]
+		require.EqualError(t, b.IsValid(crypto.SHA256, sdrs.Hash(crypto.SHA256)), "block hash does not match to the block hash in the unicity certificate input record")
 	})
 }
 

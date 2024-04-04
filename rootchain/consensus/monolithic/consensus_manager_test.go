@@ -68,9 +68,9 @@ func initConsensusManager(t *testing.T, db keyvaluedb.KeyValueDB) (*ConsensusMan
 
 func TestConsensusManager_checkT2Timeout(t *testing.T) {
 	partitions, err := partitions.NewPartitionStoreFromGenesis([]*genesis.GenesisPartitionRecord{
-		{SystemDescriptionRecord: &genesis.SystemDescriptionRecord{SystemIdentifier: sysID3, T2Timeout: 2500}},
-		{SystemDescriptionRecord: &genesis.SystemDescriptionRecord{SystemIdentifier: sysID1, T2Timeout: 2500}},
-		{SystemDescriptionRecord: &genesis.SystemDescriptionRecord{SystemIdentifier: sysID2, T2Timeout: 2500}},
+		{SystemDescriptionRecord: &types.SystemDescriptionRecord{SystemIdentifier: sysID3, T2Timeout: 2500}},
+		{SystemDescriptionRecord: &types.SystemDescriptionRecord{SystemIdentifier: sysID1, T2Timeout: 2500}},
+		{SystemDescriptionRecord: &types.SystemDescriptionRecord{SystemIdentifier: sysID2, T2Timeout: 2500}},
 	})
 	require.NoError(t, err)
 	db, err := memorydb.New()

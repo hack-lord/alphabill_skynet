@@ -17,12 +17,12 @@ var (
 )
 
 type PartitionGenesis struct {
-	_                       struct{}                  `cbor:",toarray"`
-	SystemDescriptionRecord *SystemDescriptionRecord  `json:"system_description_record,omitempty"`
-	Certificate             *types.UnicityCertificate `json:"certificate,omitempty"`
-	RootValidators          []*PublicKeyInfo          `json:"root_validators,omitempty"`
-	Keys                    []*PublicKeyInfo          `json:"keys,omitempty"`
-	Params                  []byte                    `json:"params,omitempty"`
+	_                       struct{}                       `cbor:",toarray"`
+	SystemDescriptionRecord *types.SystemDescriptionRecord `json:"system_description_record,omitempty"`
+	Certificate             *types.UnicityCertificate      `json:"certificate,omitempty"`
+	RootValidators          []*PublicKeyInfo               `json:"root_validators,omitempty"`
+	Keys                    []*PublicKeyInfo               `json:"keys,omitempty"`
+	Params                  []byte                         `json:"params,omitempty"`
 }
 
 func (x *PartitionGenesis) FindRootPubKeyInfoById(id string) *PublicKeyInfo {
@@ -60,7 +60,7 @@ func (x *PartitionGenesis) IsValid(verifiers map[string]crypto.Verifier, hashAlg
 	}
 
 	if x.SystemDescriptionRecord == nil {
-		return ErrSystemDescriptionIsNil
+		return types.ErrSystemDescriptionIsNil
 	}
 	if err := x.SystemDescriptionRecord.IsValid(); err != nil {
 		return fmt.Errorf("invalid system decsrition record, %w", err)

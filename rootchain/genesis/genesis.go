@@ -342,7 +342,7 @@ func newPartitionRecord(nodes []*genesis.PartitionNode) (*genesis.PartitionRecor
 	}
 	// create partition record
 	pr := &genesis.PartitionRecord{
-		SystemDescriptionRecord: &genesis.SystemDescriptionRecord{
+		SystemDescriptionRecord: &types.SystemDescriptionRecord{
 			SystemIdentifier: nodes[0].BlockCertificationRequest.SystemIdentifier,
 			T2Timeout:        nodes[0].T2Timeout,
 		},
