@@ -179,7 +179,7 @@ func (n *LibP2PNetwork) sendAsync(ctx context.Context, protocol *sendProtocolDat
 		if receiver == n.self.ID() {
 			if err = n.receivedMsg(n.self.ID(), protocol.protocolID, msg); err != nil {
 				// todo: this must be improved loop-back should not fail
-				n.log.WarnContext(ctx, "loop back message failed: %v", err)
+				n.log.WarnContext(ctx, "message loop-back failed", logger.Error(err))
 			}
 			continue
 		}
