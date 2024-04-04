@@ -148,10 +148,10 @@ func (n *LibP2PNetwork) SendMsgs(ctx context.Context, messages MsgQueue, receive
 			}
 		}
 		var data []byte
-		data, err = serializeMsg(msg)
+		data, serErr := serializeMsg(msg)
 		if err != nil {
 			// if serialization fails, then still try to send the rest
-			err = errors.Join(err, fmt.Errorf("serializing message: %w", err))
+			err = errors.Join(err, fmt.Errorf("serializing message: %w", serErr))
 			continue
 		}
 
