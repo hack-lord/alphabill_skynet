@@ -116,10 +116,11 @@ func (n *LibP2PNetwork) Send(ctx context.Context, msg any, receivers ...peer.ID)
 // Returns successfully when all bytes have been written to the output buffer
 // If during writing, the other side closes or resets the stream, an error will be returned
 // However, this does not mean application level synchronization; messages can still be lost without the sender knowing
-func (n *LibP2PNetwork) SendMsgs(ctx context.Context, messages MsgQueue, receiver peer.ID) (err error) {
+func (n *LibP2PNetwork) SendMsgs(ctx context.Context, messages MsgQueue, receiver peer.ID) (resErr error) {
 	ctx, span := n.tracer.Start(ctx, "network.SenMsgs", trace.WithAttributes(attribute.Stringer("receiver", receiver)))
 	defer span.End()
 	var stream libp2pNetwork.Stream
+	var err error
 	for messages.Len() > 0 {
 		msg := messages.PopFront()
 		// create a stream with first message
@@ -133,8 +134,8 @@ func (n *LibP2PNetwork) SendMsgs(ctx context.Context, messages MsgQueue, receive
 				return fmt.Errorf("opening p2p stream %w", err)
 			}
 			defer func() {
-				if closeErr := stream.Close(); closeErr != nil {
-					err = errors.Join(err, fmt.Errorf("closing p2p stream: %w", closeErr))
+				if err = stream.Close(); err != nil {
+					resErr = errors.Join(resErr, fmt.Errorf("closing p2p stream: %w", err))
 				}
 			}()
 			// set stream write timeout from protocol or ctx timeout, whichever is earliest
@@ -148,17 +149,17 @@ func (n *LibP2PNetwork) SendMsgs(ctx context.Context, messages MsgQueue, receive
 			}
 		}
 		var data []byte
-		data, serErr := serializeMsg(msg)
+		data, err = serializeMsg(msg)
 		if err != nil {
 			// if serialization fails, then still try to send the rest
-			err = errors.Join(err, fmt.Errorf("serializing message: %w", serErr))
+			resErr = errors.Join(resErr, fmt.Errorf("serializing message: %w", err))
 			continue
 		}
 
 		// write message
-		if _, wErr := stream.Write(data); wErr != nil {
+		if _, err = stream.Write(data); err != nil {
 			// return error on stream write error; it is unlikely that the other side is still able to process messages
-			return errors.Join(err, fmt.Errorf("stream write error %w", wErr))
+			return errors.Join(resErr, fmt.Errorf("stream write error %w", err))
 		}
 	}
 	return nil
