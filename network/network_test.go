@@ -17,15 +17,15 @@ type testStrMsg struct {
 	Info string
 }
 
-type testMsgContainer struct {
+type testMsgQueue struct {
 	msgs []*testStrMsg
 }
 
-func (t *testMsgContainer) PushBack(msg *testStrMsg) {
+func (t *testMsgQueue) PushBack(msg *testStrMsg) {
 	t.msgs = append(t.msgs, msg)
 }
 
-func (t *testMsgContainer) PopFront() any {
+func (t *testMsgQueue) PopFront() any {
 	if len(t.msgs) == 0 {
 		panic("pop on empty container")
 	}
@@ -34,7 +34,7 @@ func (t *testMsgContainer) PopFront() any {
 	return msg
 }
 
-func (t *testMsgContainer) Len() int {
+func (t *testMsgQueue) Len() int {
 	return len(t.msgs)
 }
 
@@ -225,7 +225,7 @@ func Test_LibP2PNetwork_SendMsgs(t *testing.T) {
 
 		require.NoError(t, nw1.registerSendProtocol(sendProtocolDescription{protocolID: "test/p", msgType: testStrMsg{}, timeout: 100 * time.Millisecond}))
 		require.NoError(t, nw2.registerReceiveProtocol(receiveProtocolDescription{protocolID: "test/p", typeFn: func() any { return &testStrMsg{} }}))
-		container := &testMsgContainer{}
+		container := &testMsgQueue{}
 		container.PushBack(&testStrMsg{Info: "test message1"})
 		container.PushBack(&testStrMsg{Info: "test message2"})
 
@@ -252,7 +252,7 @@ func Test_LibP2PNetwork_SendMsgs(t *testing.T) {
 
 		require.NoError(t, nw1.registerSendProtocol(sendProtocolDescription{protocolID: "test/p", msgType: testStrMsg{}, timeout: 100 * time.Millisecond}))
 		require.NoError(t, nw2.registerReceiveProtocol(receiveProtocolDescription{protocolID: "test/p", typeFn: func() any { return &testStrMsg{} }}))
-		container := &testMsgContainer{}
+		container := &testMsgQueue{}
 		for i := 1; i <= 4; i++ {
 			container.PushBack(&testStrMsg{Info: fmt.Sprintf("make a test message that is a bit longer to simulate real messages: test message %v", i)})
 		}
@@ -280,7 +280,7 @@ func Test_LibP2PNetwork_SendMsgs(t *testing.T) {
 
 		require.NoError(t, nw1.registerSendProtocol(sendProtocolDescription{protocolID: "test/p", msgType: testStrMsg{}, timeout: 100 * time.Millisecond}))
 		require.NoError(t, nw2.registerReceiveProtocol(receiveProtocolDescription{protocolID: "test/p", typeFn: func() any { return &testStrMsg{} }}))
-		container := &testMsgContainer{}
+		container := &testMsgQueue{}
 		for i := 1; i <= 10000; i++ {
 			container.PushBack(&testStrMsg{Info: fmt.Sprintf("make a test message that is a bit longer to simulate real messages: test message %v", i)})
 		}
@@ -300,7 +300,7 @@ func Test_LibP2PNetwork_SendMsgs(t *testing.T) {
 		type fooMsg struct{}
 		require.NoError(t, nw1.registerSendProtocol(sendProtocolDescription{protocolID: "test/p", msgType: fooMsg{}, timeout: 100 * time.Millisecond}))
 		require.NoError(t, nw2.registerReceiveProtocol(receiveProtocolDescription{protocolID: "test/p", typeFn: func() any { return &testStrMsg{} }}))
-		container := &testMsgContainer{}
+		container := &testMsgQueue{}
 		for i := 1; i <= 4; i++ {
 			container.PushBack(&testStrMsg{Info: fmt.Sprintf("make a test message that is a bit longer to simulate real messages: test message %v", i)})
 		}
@@ -317,7 +317,7 @@ func Test_LibP2PNetwork_SendMsgs(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, nw1.registerSendProtocol(sendProtocolDescription{protocolID: "test/p", msgType: testStrMsg{}, timeout: 100 * time.Millisecond}))
 		require.NoError(t, nw2.registerReceiveProtocol(receiveProtocolDescription{protocolID: "test/p", typeFn: func() any { return &testStrMsg{} }}))
-		container := &testMsgContainer{}
+		container := &testMsgQueue{}
 		for i := 1; i <= 4; i++ {
 			container.PushBack(&testStrMsg{Info: fmt.Sprintf("make a test message that is a bit longer to simulate real messages: test message %v", i)})
 		}
