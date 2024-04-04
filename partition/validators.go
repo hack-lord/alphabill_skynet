@@ -103,7 +103,7 @@ func NewDefaultUnicityCertificateValidator(
 }
 
 func (ucv *DefaultUnicityCertificateValidator) Validate(uc *types.UnicityCertificate) error {
-	return uc.IsValid(ucv.rootTrustBase, ucv.algorithm, ucv.systemIdentifier, ucv.systemDescriptionHash)
+	return uc.Verify(ucv.rootTrustBase, ucv.algorithm, ucv.systemIdentifier, ucv.systemDescriptionHash)
 }
 
 // NewDefaultBlockProposalValidator creates a new instance of default BlockProposalValidator.

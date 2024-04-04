@@ -92,11 +92,11 @@ func TestBlock_SystemID(t *testing.T) {
 func TestBlock_IsValid(t *testing.T) {
 	t.Run("Block is nil", func(t *testing.T) {
 		var b *Block = nil
-		require.EqualError(t, b.IsValid(), "block is nil")
+		require.EqualError(t, b.IsValid(crypto.SHA256, nil), "block is nil")
 	})
 	t.Run("Header is nil", func(t *testing.T) {
 		b := &Block{}
-		require.EqualError(t, b.IsValid(), "block error: block header is nil")
+		require.EqualError(t, b.IsValid(crypto.SHA256, nil), "block error: block header is nil")
 	})
 	t.Run("Transactions is nil", func(t *testing.T) {
 		b := &Block{
@@ -106,7 +106,7 @@ func TestBlock_IsValid(t *testing.T) {
 				PreviousBlockHash: []byte{1, 2, 3},
 			},
 		}
-		require.EqualError(t, b.IsValid(), "transactions is nil")
+		require.EqualError(t, b.IsValid(crypto.SHA256, nil), "transactions is nil")
 	})
 	t.Run("UC is nil", func(t *testing.T) {
 		b := &Block{
@@ -117,9 +117,9 @@ func TestBlock_IsValid(t *testing.T) {
 			},
 			Transactions: make([]*TransactionRecord, 0),
 		}
-		require.EqualError(t, b.IsValid(), "unicity certificate is nil")
+		require.EqualError(t, b.IsValid(crypto.SHA256, nil), "unicity certificate is nil")
 	})
-	t.Run("valid", func(t *testing.T) {
+	t.Run("input record is nil", func(t *testing.T) {
 		b := &Block{
 			Header: &Header{
 				SystemID:          SystemID(1),
@@ -129,7 +129,7 @@ func TestBlock_IsValid(t *testing.T) {
 			Transactions:       make([]*TransactionRecord, 0),
 			UnicityCertificate: &UnicityCertificate{},
 		}
-		require.NoError(t, b.IsValid())
+		require.EqualError(t, b.IsValid(crypto.SHA256, nil), "unicity certificate validation failed: input record error: input record is nil")
 	})
 }
 

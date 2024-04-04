@@ -124,7 +124,7 @@ func TestUnicityCertificate_IsValid(t *testing.T) {
 				UnicitySeal:            tt.fields.UnicitySeal,
 			}
 
-			err := uc.IsValid(tt.args.verifiers, tt.args.algorithm, tt.args.systemIdentifier, tt.args.systemDescriptionHash)
+			err := uc.Verify(tt.args.verifiers, tt.args.algorithm, tt.args.systemIdentifier, tt.args.systemDescriptionHash)
 			if tt.err != nil {
 				require.ErrorIs(t, err, tt.err)
 			} else {
@@ -139,7 +139,7 @@ func TestUnicityCertificate_UCIsNil(t *testing.T) {
 	require.EqualValues(t, 0, uc.GetRoundNumber())
 	require.EqualValues(t, 0, uc.GetRootRoundNumber())
 	require.Nil(t, uc.GetStateHash())
-	require.ErrorIs(t, uc.IsValid(nil, gocrypto.SHA256, 0, nil), ErrUnicityCertificateIsNil)
+	require.ErrorIs(t, uc.Verify(nil, gocrypto.SHA256, 0, nil), ErrUnicityCertificateIsNil)
 }
 
 func TestUnicityCertificate_IRNil(t *testing.T) {
@@ -150,7 +150,7 @@ func TestUnicityCertificate_IRNil(t *testing.T) {
 	require.EqualValues(t, 0, uc.GetRoundNumber())
 	require.EqualValues(t, 0, uc.GetRootRoundNumber())
 	require.Nil(t, uc.GetStateHash())
-	require.EqualError(t, uc.IsValid(nil, gocrypto.SHA256, 0, nil), "unicity seal validation failed, root node info is missing")
+	require.EqualError(t, uc.Verify(nil, gocrypto.SHA256, 0, nil), "unicity certificate validation failed: input record error: input record is nil")
 }
 
 func TestUnicityCertificate_isRepeat(t *testing.T) {

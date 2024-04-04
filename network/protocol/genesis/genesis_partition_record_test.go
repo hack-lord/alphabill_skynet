@@ -102,7 +102,7 @@ func TestGenesisPartitionRecord_IsValid(t *testing.T) {
 				},
 				SystemDescriptionRecord: &SystemDescriptionRecord{SystemIdentifier: 1, T2Timeout: 10},
 			},
-			wantErrStr: "unicity certificate validation failed, unicity certificate is nil",
+			wantErrStr: "unicity certificate verify error: unicity certificate validation failed: unicity certificate is nil",
 		},
 	}
 	for _, tt := range tests {

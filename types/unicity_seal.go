@@ -20,12 +20,11 @@ var (
 	ErrUnicitySealIsNil          = errors.New("unicity seal is nil")
 	ErrSignerIsNil               = errors.New("signer is nil")
 	ErrUnicitySealHashIsNil      = errors.New("hash is nil")
-	ErrInvalidBlockNumber        = errors.New("invalid block number")
+	ErrInvalidRootRound          = errors.New("invalid root round number")
 	ErrUnicitySealSignatureIsNil = errors.New("no signatures")
 	ErrRootValidatorInfoMissing  = errors.New("root node info is missing")
 	ErrUnknownSigner             = errors.New("unknown signer")
 	errInvalidTimestamp          = errors.New("invalid timestamp")
-	errUnicitySealNoSignature    = errors.New("unicity seal is missing signature")
 )
 
 type SignatureMap map[string][]byte
@@ -98,18 +97,15 @@ func NewTimestamp() uint64 {
 	return uint64(time.Now().Unix())
 }
 
-func (x *UnicitySeal) IsValid(verifiers map[string]crypto.Verifier) error {
+func (x *UnicitySeal) IsValid() error {
 	if x == nil {
 		return ErrUnicitySealIsNil
-	}
-	if len(verifiers) == 0 {
-		return ErrRootValidatorInfoMissing
 	}
 	if x.Hash == nil {
 		return ErrUnicitySealHashIsNil
 	}
 	if x.RootChainRoundNumber < 1 {
-		return ErrInvalidBlockNumber
+		return ErrInvalidRootRound
 	}
 	if x.Timestamp < GenesisTime {
 		return errInvalidTimestamp
@@ -117,7 +113,7 @@ func (x *UnicitySeal) IsValid(verifiers map[string]crypto.Verifier) error {
 	if len(x.Signatures) == 0 {
 		return ErrUnicitySealSignatureIsNil
 	}
-	return x.Verify(verifiers)
+	return nil
 }
 
 // Bytes - serialize everything except signatures (used for sign and verify)
@@ -150,8 +146,8 @@ func (x *UnicitySeal) Verify(verifiers map[string]crypto.Verifier) error {
 	if verifiers == nil {
 		return ErrRootValidatorInfoMissing
 	}
-	if len(x.Signatures) == 0 {
-		return errUnicitySealNoSignature
+	if err := x.IsValid(); err != nil {
+		return fmt.Errorf("unicity seal validation error: %w", err)
 	}
 	// Verify all signatures, all must be from known origin and valid
 	for id, sig := range x.Signatures {

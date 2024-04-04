@@ -70,7 +70,7 @@ func (x *PartitionGenesis) IsValid(verifiers map[string]crypto.Verifier, hashAlg
 	}
 	sdrHash := x.SystemDescriptionRecord.Hash(hashAlgorithm)
 	// validate all signatures against known root keys
-	if err := x.Certificate.IsValid(verifiers, hashAlgorithm, x.SystemDescriptionRecord.SystemIdentifier, sdrHash); err != nil {
+	if err := x.Certificate.Verify(verifiers, hashAlgorithm, x.SystemDescriptionRecord.SystemIdentifier, sdrHash); err != nil {
 		return fmt.Errorf("invalid unicity certificate, %w", err)
 	}
 	// UC Seal must be signed by all validators

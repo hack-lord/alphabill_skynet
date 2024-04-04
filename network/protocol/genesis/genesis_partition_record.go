@@ -47,8 +47,8 @@ func (x *GenesisPartitionRecord) IsValid(verifiers map[string]crypto.Verifier, h
 	if err := nodesUnique(x.Nodes); err != nil {
 		return fmt.Errorf("partition nodes validation failed, %w", err)
 	}
-	if err := x.Certificate.IsValid(verifiers, hashAlgorithm, systemIdentifier, systemDescriptionHash); err != nil {
-		return fmt.Errorf("unicity certificate validation failed, %w", err)
+	if err := x.Certificate.Verify(verifiers, hashAlgorithm, systemIdentifier, systemDescriptionHash); err != nil {
+		return fmt.Errorf("unicity certificate verify error: %w", err)
 	}
 	return nil
 }
