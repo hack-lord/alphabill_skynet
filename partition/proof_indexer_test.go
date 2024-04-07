@@ -35,8 +35,6 @@ func TestNewProofIndexer_history_2(t *testing.T) {
 	blockRound2 := simulateInput(2, unitID)
 	require.NoError(t, indexer.create(ctx, blockRound2.Block, blockRound2.State))
 
-	// add the same block again
-	require.ErrorContains(t, indexer.create(ctx, blockRound2.Block, blockRound2.State), "block 2 already indexed")
 	blockRound3 := simulateInput(3, unitID)
 	require.NoError(t, indexer.create(ctx, blockRound3.Block, blockRound3.State))
 
@@ -71,15 +69,14 @@ func TestNewProofIndexer_NothingIsWrittenIfBlockIsEmpty(t *testing.T) {
 	// start indexing loop
 	ctx := context.Background()
 	blockRound1 := simulateEmptyInput(1)
-	require.NoError(t, indexer.create(ctx, blockRound1.Block, blockRound1.State))
+	require.NoError(t, indexer.IndexBlock(ctx, blockRound1.Block, blockRound1.State))
 	blockRound2 := simulateEmptyInput(2)
-	require.NoError(t, indexer.create(ctx, blockRound2.Block, blockRound2.State))
-	// add the same block again
-	require.ErrorContains(t, indexer.create(ctx, blockRound2.Block, blockRound2.State), "block 2 already indexed")
+	require.NoError(t, indexer.IndexBlock(ctx, blockRound2.Block, blockRound2.State))
 	blockRound3 := simulateEmptyInput(3)
-	require.NoError(t, indexer.create(ctx, blockRound3.Block, blockRound3.State))
-	// run clean-up
-	require.NoError(t, indexer.historyCleanup(ctx, 3))
+	// index block 1 again will just return as it is already indexed
+	require.NoError(t, indexer.IndexBlock(ctx, blockRound1.Block, blockRound1.State))
+	// since history is set to 2 rounds/blocks, then 1 will be now removed
+	require.NoError(t, indexer.IndexBlock(ctx, blockRound3.Block, blockRound3.State))
 	require.EqualValues(t, 3, indexer.latestIndexedBlockNumber())
 	// index db contains only latest round number
 	dbIt := proofDB.First()

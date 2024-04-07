@@ -64,6 +64,10 @@ func NewProofIndexer(algo crypto.Hash, db keyvaluedb.KeyValueDB, historySize uin
 
 func (p *ProofIndexer) IndexBlock(ctx context.Context, block *types.Block, state UnitAndProof) error {
 	roundNumber := block.GetRoundNumber()
+	if roundNumber <= p.latestIndexedBlockNumber() {
+		p.log.DebugContext(ctx, fmt.Sprintf("block for round %v is already indexed", roundNumber))
+		return nil
+	}
 	p.log.Log(ctx, logger.LevelTrace, fmt.Sprintf("indexing block %v", roundNumber))
 	if err := p.create(ctx, block, state); err != nil {
 		return fmt.Errorf("creating index failed: %w", err)
@@ -104,9 +108,6 @@ func (p *ProofIndexer) loop(ctx context.Context) error {
 
 // create - creates proof index DB entries
 func (p *ProofIndexer) create(ctx context.Context, block *types.Block, stateReader UnitAndProof) (err error) {
-	if block.GetRoundNumber() <= p.latestIndexedBlockNumber() {
-		return fmt.Errorf("block %d already indexed", block.GetRoundNumber())
-	}
 	dbTx, err := p.storage.StartTx()
 	if err != nil {
 		return fmt.Errorf("start DB transaction failed: %w", err)
