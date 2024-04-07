@@ -146,22 +146,22 @@ func TestSignatureMap_Serialize(t *testing.T) {
 		smap := SignatureMap{}
 		data, err := smap.MarshalCBOR()
 		require.NoError(t, err)
-		var res SignatureMap
+		res := SignatureMap{}
 		require.NoError(t, res.UnmarshalCBOR(data))
 		require.Empty(t, smap)
 	})
 	t.Run("SignatureMap normal", func(t *testing.T) {
-		smap := SignatureMap{"1": []byte{1, 2, 3}, "2": []byte{2, 3, 4}}
+		smap := SignatureMap{"x": []byte{9, 9, 9}, "1": []byte{1, 2, 3}, "a": []byte{0, 0, 0}, "2": []byte{2, 3, 4}}
 		data, err := smap.MarshalCBOR()
 		require.NoError(t, err)
-		var res SignatureMap
+		res := SignatureMap{}
 		require.NoError(t, res.UnmarshalCBOR(data))
 		require.EqualValues(t, smap, res)
 	})
 }
 
 func TestSignatureMap_AddToHasher_Nil(t *testing.T) {
-	var smap *SignatureMap = nil
+	var smap SignatureMap
 	hasher := gocrypto.SHA256.New()
 	smap.AddToHasher(hasher)
 	require.Nil(t, smap)

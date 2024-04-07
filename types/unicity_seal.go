@@ -45,17 +45,16 @@ type signature struct {
 	Signature []byte   `json:"signature,omitempty"`
 }
 
-func (s *SignatureMap) MarshalCBOR() ([]byte, error) {
+func (s SignatureMap) MarshalCBOR() ([]byte, error) {
 	// shallow copy
-	signatures := *s
-	authors := make([]string, 0, len(signatures))
-	for k := range *s {
+	authors := make([]string, 0, len(s))
+	for k := range s {
 		authors = append(authors, k)
 	}
 	sort.Strings(authors)
-	sCBOR := make(signaturesCBOR, len(signatures))
+	sCBOR := make(signaturesCBOR, len(s))
 	for i, author := range authors {
-		sCBOR[i] = &signature{NodeID: author, Signature: signatures[author]}
+		sCBOR[i] = &signature{NodeID: author, Signature: s[author]}
 	}
 	return Cbor.Marshal(sCBOR)
 }
@@ -73,19 +72,17 @@ func (s *SignatureMap) UnmarshalCBOR(b []byte) error {
 	return nil
 }
 
-func (s *SignatureMap) AddToHasher(hasher hash.Hash) {
+func (s SignatureMap) AddToHasher(hasher hash.Hash) {
 	if s == nil {
 		return
 	}
-	// shallow copy
-	smap := *s
-	authors := make([]string, 0, len(smap))
-	for k := range *s {
+	authors := make([]string, 0, len(s))
+	for k := range s {
 		authors = append(authors, k)
 	}
 	sort.Strings(authors)
 	for _, author := range authors {
-		sig := smap[author]
+		sig := s[author]
 		hasher.Write([]byte(author))
 		hasher.Write(sig)
 	}
@@ -136,7 +133,7 @@ func (x *UnicitySeal) Sign(id string, signer crypto.Signer) error {
 	}
 	// initiate signatures
 	if x.Signatures == nil {
-		x.Signatures = make(map[string][]byte)
+		x.Signatures = make(SignatureMap)
 	}
 	x.Signatures[id] = sig
 	return nil
