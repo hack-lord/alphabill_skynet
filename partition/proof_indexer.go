@@ -203,7 +203,7 @@ func (p *ProofIndexer) latestIndexedBlockNumber() uint64 {
 func (p *ProofIndexer) historyCleanup(ctx context.Context, round uint64) (resErr error) {
 	// if history size is set to 0, then do not run clean-up ||
 	// if round - history is <= 0 then there is nothing to clean
-	if p.historySize == 0 || round-p.historySize <= 0 {
+	if p.historySize == 0 || round < p.historySize || round-p.historySize <= 0 {
 		return nil
 	}
 	// remove old history

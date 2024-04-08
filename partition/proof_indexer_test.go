@@ -34,6 +34,9 @@ func TestNewProofIndexer_history_2(t *testing.T) {
 	unitID := make([]byte, 32)
 	blockRound1 := simulateInput(1, unitID)
 	require.NoError(t, indexer.create(ctx, blockRound1.Block, blockRound1.State))
+	// make sure when called with bigger round than history nothing bad will happen
+	require.NoError(t, indexer.historyCleanup(ctx, 3))
+
 	blockRound2 := simulateInput(2, unitID)
 	require.NoError(t, indexer.create(ctx, blockRound2.Block, blockRound2.State))
 
