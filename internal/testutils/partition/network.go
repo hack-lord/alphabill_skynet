@@ -230,6 +230,10 @@ func (r *RootPartition) start(ctx context.Context, bootNodes []peer.AddrInfo) er
 			for _, p := range rootPeers {
 				rootPeer.Network().Peerstore().AddAddr(p.ID(), p.MultiAddresses()[0], peerstore.PermanentAddrTTL)
 			}
+		} else {
+			if err := rootPeer.BootstrapConnect(ctx, log); err != nil {
+				return fmt.Errorf("root node bootstrap failed, %w", err)
+			}
 		}
 		rootNet, err := network.NewLibP2PRootChainNetwork(rootPeer, 100, testNetworkTimeout, obs)
 		if err != nil {
