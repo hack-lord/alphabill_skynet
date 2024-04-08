@@ -39,24 +39,24 @@ func TestNode_NodeStartTest(t *testing.T) {
 	// node starts in init state
 	require.Equal(t, initializing, tp.partition.status.Load())
 	// node sends a handshake to root
-	require.Eventually(t, RequestReceived(tp, network.ProtocolHandshake), 200*time.Millisecond, test.WaitShortTick)
+	test.TryTilCountIs(t, RequestReceived(tp, network.ProtocolHandshake), 4, test.WaitShortTick)
 	// simulate no response, but monitor timeout
 	tp.mockNet.ResetSentMessages(network.ProtocolHandshake)
 	tp.SubmitMonitorTimeout(t)
 	// node sends a handshake to root
-	require.Eventually(t, RequestReceived(tp, network.ProtocolHandshake), 200*time.Millisecond, test.WaitShortTick)
+	test.TryTilCountIs(t, RequestReceived(tp, network.ProtocolHandshake), 4, test.WaitShortTick)
 	// while no response is received a retry is triggered on each timeout
 	tp.mockNet.ResetSentMessages(network.ProtocolHandshake)
 	tp.SubmitMonitorTimeout(t)
 	// node sends a handshake
-	require.Eventually(t, RequestReceived(tp, network.ProtocolHandshake), 200*time.Millisecond, test.WaitShortTick)
+	test.TryTilCountIs(t, RequestReceived(tp, network.ProtocolHandshake), 4, test.WaitShortTick)
 	tp.mockNet.ResetSentMessages(network.ProtocolHandshake)
 	// root responds with genesis
 	tp.SubmitUnicityCertificate(tp.partition.luc.Load())
 	// node is initiated
-	require.Eventually(t, func() bool {
+	test.TryTilCountIs(t, func() bool {
 		return tp.partition.status.Load() == normal
-	}, test.WaitDuration, test.WaitTick)
+	}, 400, test.WaitTick)
 }
 
 func TestNode_NodeStartWithRecoverStateFromDB(t *testing.T) {
