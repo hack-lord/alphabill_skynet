@@ -635,7 +635,8 @@ func Test_ConsensusManager_messages(t *testing.T) {
 		// and wait for cm to exit
 		select {
 		case <-time.After(10 * time.Second):
-			t.Fatal("consensus manager did not exit in time")
+			panic("consensus manager did not exit in time")
+			//t.Fatal("consensus manager did not exit in time")
 		case <-doneCh:
 		}
 	}
