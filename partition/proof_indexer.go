@@ -200,7 +200,7 @@ func (p *ProofIndexer) latestIndexedBlockNumber() uint64 {
 
 // historyCleanup - removes old indexes from DB
 // todo: NB! it does not currently work correctly if history size is changed
-func (p *ProofIndexer) historyCleanup(ctx context.Context, round uint64) (err error) {
+func (p *ProofIndexer) historyCleanup(ctx context.Context, round uint64) (resErr error) {
 	// if history size is set to 0, then do not run clean-up ||
 	// if round - history is <= 0 then there is nothing to clean
 	if p.historySize == 0 || round-p.historySize <= 0 {
@@ -224,27 +224,34 @@ func (p *ProofIndexer) historyCleanup(ctx context.Context, round uint64) (err er
 
 	// commit if no error, rollback if any error
 	defer func() {
-		if err != nil {
-			if e := dbTx.Rollback(); e != nil {
-				err = errors.Join(err, fmt.Errorf("history clean rollback failed: %w", e))
+		if resErr != nil {
+			if err = dbTx.Rollback(); err != nil {
+				resErr = errors.Join(resErr, fmt.Errorf("history clean rollback failed: %w", err))
 			}
 		}
 	}()
 	defer func() {
-		if err == nil {
-			if e := dbTx.Commit(); e != nil {
-				err = errors.Join(err, fmt.Errorf("history clean commit failed: %w", e))
+		if resErr == nil {
+			if err = dbTx.Commit(); err != nil {
+				resErr = errors.Join(resErr, fmt.Errorf("history clean commit failed: %w", err))
 			}
 		}
 	}()
 
 	for _, key := range history.UnitProofIndexKeys {
-		if e := dbTx.Delete(key); e != nil {
-			err = errors.Join(err, fmt.Errorf("unable to delete unit poof index: %w", e))
+		if err = dbTx.Delete(key); err != nil {
+			resErr = errors.Join(resErr, fmt.Errorf("unable to delete unit poof index: %w", err))
 		}
 	}
+	// if node was not able to clean the proof index, then do not delete history index too
+	if resErr != nil {
+		return resErr
+	}
+	if err = dbTx.Delete(util.Uint64ToBytes(d)); err != nil {
+		resErr = errors.Join(resErr, fmt.Errorf("unable to delete history index: %w", err))
+	}
 	p.log.Log(ctx, logger.LevelTrace, fmt.Sprintf("Removed old unit proofs from round %d, index size %d", d, len(history.UnitProofIndexKeys)))
-	return err
+	return
 }
 
 func ReadTransactionIndex(db keyvaluedb.KeyValueDB, txOrderHash []byte) (*TxIndex, error) {
