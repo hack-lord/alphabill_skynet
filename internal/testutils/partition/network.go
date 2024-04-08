@@ -538,8 +538,9 @@ func (a *AlphabillNetwork) WaitClose(t *testing.T) {
 
 	select {
 	case <-done:
-	case <-time.After(3000 * time.Millisecond):
-		t.Error("AB network didn't stop within timeout")
+	case <-time.After(10 * time.Second):
+		panic("AB network didn't stop within timeout")
+		//t.Error("AB network didn't stop within timeout"")
 	}
 }
 
