@@ -19,7 +19,7 @@ func TestNewNetwork_Ok(t *testing.T) {
 	counterPartition, err := NewPartition(t, 3,
 		func(_ map[string]crypto.Verifier) txsystem.TransactionSystem {
 			txs := &testtxsystem.CounterTxSystem{}
-			txs.Commit(genesisState.CommittedUC())
+			require.NoError(t, txs.Commit(genesisState.CommittedUC()))
 			return txs
 		},
 		systemIdentifier, genesisState)
@@ -51,7 +51,7 @@ func TestNewNetwork_StandaloneBootstrapNodes(t *testing.T) {
 	counterPartition, err := NewPartition(t, 3,
 		func(_ map[string]crypto.Verifier) txsystem.TransactionSystem {
 			txs := &testtxsystem.CounterTxSystem{}
-			txs.Commit(genesisState.CommittedUC())
+			require.NoError(t, txs.Commit(genesisState.CommittedUC()))
 			return txs
 		},
 		systemIdentifier, genesisState)
