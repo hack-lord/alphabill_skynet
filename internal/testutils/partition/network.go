@@ -1,6 +1,7 @@
 package testpartition
 
 import (
+	"cmp"
 	"context"
 	gocrypto "crypto"
 	"crypto/rand"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime/pprof"
+	"slices"
 	"sort"
 	"testing"
 	"time"
@@ -84,7 +86,6 @@ type rootNode struct {
 	RootSigner abcrypto.Signer
 	genesis    *genesis.RootGenesis
 	peerConf   *network.PeerConfiguration
-	id         peer.ID
 	addr       []multiaddr.Multiaddr
 
 	cancel context.CancelFunc
@@ -123,32 +124,21 @@ func newRootPartition(nofRootNodes uint8, nodePartitions []*NodePartition) (*Roo
 	trustBase := make(map[string]abcrypto.Verifier)
 	rootNodes := make([]*rootNode, nofRootNodes)
 	rootGenesisFiles := make([]*genesis.RootGenesis, nofRootNodes)
-	keyPairs, err := generateKeyPairs(nofRootNodes)
+	// generates keys and sorts them in lexical order - meaning root node 0 is the first leader
+	rootPeerCfg, err := createPeerConfs(nofRootNodes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate encryption keypairs, %w", err)
 	}
-	for i := 0; i < int(nofRootNodes); i++ {
-		encPubKey, err := libp2pcrypto.UnmarshalSecp256k1PublicKey(keyPairs[i].PublicKey)
-		if err != nil {
-			return nil, err
-		}
-		pubKeyBytes, err := encPubKey.Raw()
-		if err != nil {
-			return nil, err
-		}
-		id, err := peer.IDFromPublicKey(encPubKey)
-		if err != nil {
-			return nil, fmt.Errorf("root node id error, %w", err)
-		}
+	for i, peerCfg := range rootPeerCfg {
 		nodeGenesisFiles := getGenesisFiles(nodePartitions)
 		pr, err := rootgenesis.NewPartitionRecordFromNodes(nodeGenesisFiles)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create genesis partition record")
 		}
 		rg, _, err := rootgenesis.NewRootGenesis(
-			id.String(),
+			peerCfg.ID.String(),
 			rootSigners[i],
-			pubKeyBytes,
+			peerCfg.KeyPair.PublicKey,
 			pr,
 			rootgenesis.WithTotalNodes(uint32(nofRootNodes)),
 			rootgenesis.WithBlockRate(300), // set block rate at 300 ms, just to give a bit more time for nodes to bootstrap
@@ -160,15 +150,12 @@ func newRootPartition(nofRootNodes uint8, nodePartitions []*NodePartition) (*Roo
 		if err != nil {
 			return nil, fmt.Errorf("failed to get root node verifier, %w", err)
 		}
-		trustBase[id.String()] = ver
+		trustBase[peerCfg.ID.String()] = ver
 		rootGenesisFiles[i] = rg
 		rootNodes[i] = &rootNode{
 			genesis:    rg,
 			RootSigner: rootSigners[i],
-			peerConf: &network.PeerConfiguration{
-				ID:      id,
-				Address: "/ip4/127.0.0.1/tcp/0",
-				KeyPair: keyPairs[i]},
+			peerConf:   peerCfg,
 		}
 	}
 	rootGenesis, partitionGenesisFiles, err := rootgenesis.MergeRootGenesisFiles(rootGenesisFiles)
@@ -230,7 +217,6 @@ func (r *RootPartition) start(ctx context.Context, bootNodes []peer.AddrInfo, ro
 		}
 		rn.Node = rootchainNode
 		rn.addr = rootPeer.MultiAddresses()
-		rn.id = rootPeer.ID()
 		// start root node
 		nctx, ncfn := context.WithCancel(ctx)
 		rn.cancel = ncfn
@@ -414,14 +400,6 @@ func (a *AlphabillNetwork) createBootNodes(t *testing.T, ctx context.Context, ob
 	a.BootNodes = bootNodes
 }
 
-func (a *AlphabillNetwork) getBootstrapNodeInfo() []peer.AddrInfo {
-	bootNodes := make([]peer.AddrInfo, len(a.BootNodes))
-	for i, n := range a.BootNodes {
-		bootNodes[i] = peer.AddrInfo{ID: n.ID(), Addrs: n.MultiAddresses()}
-	}
-	return bootNodes
-}
-
 // Start AB network, no bootstrap all id's and addresses are injected to peer store at start
 func (a *AlphabillNetwork) Start(t *testing.T) error {
 	a.RootPartition.obs = testobserve.NewFactory(t)
@@ -429,6 +407,10 @@ func (a *AlphabillNetwork) Start(t *testing.T) error {
 	ctx, ctxCancel := context.WithCancel(context.Background())
 	// by default, use root node 1 as bootstrap
 	require.NotEmpty(t, a.RootPartition.Nodes)
+	// sort by node id
+	slices.SortFunc(a.RootPartition.Nodes, func(a, b *rootNode) int {
+		return cmp.Compare(a.peerConf.ID, b.peerConf.ID)
+	})
 	// first start root node 0 and use it as bootstrap node
 	bootNode, rest := a.RootPartition.Nodes[0], a.RootPartition.Nodes[1:]
 	if err := a.RootPartition.start(ctx, nil, bootNode); err != nil {
