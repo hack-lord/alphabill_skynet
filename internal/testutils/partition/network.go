@@ -407,7 +407,10 @@ func (a *AlphabillNetwork) Start(t *testing.T) error {
 	ctx, ctxCancel := context.WithCancel(context.Background())
 	// by default, use root node 1 as bootstrap
 	require.NotEmpty(t, a.RootPartition.Nodes)
-	// sort by node id
+	// sort by node id to make sure that leader is not first node (if not only 1 node)
+	// first leader is selected by round number from lexically sorted ID's
+	// NB! this is not an optimal solution, but it is a unit test issue, in a real deploy
+	// it is ok that some rounds at start are lost until enough nodes are up.
 	slices.SortFunc(a.RootPartition.Nodes, func(a, b *rootNode) int {
 		return cmp.Compare(a.peerConf.ID, b.peerConf.ID)
 	})
@@ -450,6 +453,13 @@ func (a *AlphabillNetwork) StartWithStandAloneBootstrapNodes(t *testing.T) error
 	for i, n := range a.BootNodes {
 		bootStrapInfo[i] = peer.AddrInfo{ID: n.ID(), Addrs: n.MultiAddresses()}
 	}
+	// sort by node id to make sure that leader is not first node (if not only 1 node)
+	// first leader is selected by round number from lexically sorted ID's
+	// NB! this is not an optimal solution, but it is a unit test issue, in a real deploy
+	// it is ok that some rounds at start are lost until enough nodes are up.
+	slices.SortFunc(a.RootPartition.Nodes, func(a, b *rootNode) int {
+		return cmp.Compare(a.peerConf.ID, b.peerConf.ID)
+	})
 	if err := a.RootPartition.start(ctx, bootStrapInfo, a.RootPartition.Nodes...); err != nil {
 		ctxCancel()
 		return fmt.Errorf("failed to start root partition with dedicated boot node, %w", err)
