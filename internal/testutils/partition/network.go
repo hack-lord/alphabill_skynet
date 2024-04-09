@@ -465,26 +465,32 @@ func (a *AlphabillNetwork) StartWithStandAloneBootstrapNodes(t *testing.T) error
 	return nil
 }
 
-func (a *AlphabillNetwork) Close() (err error) {
+func (a *AlphabillNetwork) Close() (retErr error) {
 	a.ctxCancel()
 	// wait and check validator exit
 	for _, part := range a.NodePartitions {
 		// stop all nodes
 		for _, n := range part.Nodes {
+			if err := n.Node.GetPeer().Close(); err != nil {
+				retErr = errors.Join(retErr, fmt.Errorf("peer close error: %w", err))
+			}
 			nodeErr := <-n.done
 			if !errors.Is(nodeErr, context.Canceled) {
-				err = errors.Join(err, nodeErr)
+				retErr = errors.Join(retErr, nodeErr)
 			}
 		}
 	}
 	// check root exit
 	for _, rnode := range a.RootPartition.Nodes {
+		if err := rnode.Node.GetPeer().Close(); err != nil {
+			retErr = errors.Join(retErr, fmt.Errorf("peer close error: %w", err))
+		}
 		rootErr := <-rnode.done
 		if !errors.Is(rootErr, context.Canceled) {
-			err = errors.Join(err, rootErr)
+			retErr = errors.Join(retErr, rootErr)
 		}
 	}
-	return err
+	return retErr
 }
 
 /*
