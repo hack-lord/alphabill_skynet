@@ -415,7 +415,7 @@ func (a *AlphabillNetwork) Start(t *testing.T) error {
 	bootNode, rest := a.RootPartition.Nodes[0], a.RootPartition.Nodes[1:]
 	if err := a.RootPartition.start(ctx, nil, bootNode); err != nil {
 		ctxCancel()
-		return fmt.Errorf("failed to start root partition, %w", err)
+		return fmt.Errorf("failed to start root partition boot node, %w", err)
 	}
 	bootStrapInfo := []peer.AddrInfo{{
 		ID:    a.RootPartition.Nodes[0].peerConf.ID,
