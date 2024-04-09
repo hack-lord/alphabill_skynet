@@ -452,7 +452,7 @@ func (a *AlphabillNetwork) StartWithStandAloneBootstrapNodes(t *testing.T) error
 	}
 	if err := a.RootPartition.start(ctx, bootStrapInfo, a.RootPartition.Nodes...); err != nil {
 		ctxCancel()
-		return fmt.Errorf("failed to start root partition, %w", err)
+		return fmt.Errorf("failed to start root partition with dedicated boot node, %w", err)
 	}
 	for id, part := range a.NodePartitions {
 		// create one event handler per partition
