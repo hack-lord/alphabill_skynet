@@ -519,7 +519,7 @@ func (a *AlphabillNetwork) WaitClose(t *testing.T) {
 	select {
 	case <-done:
 	case <-time.After(10 * time.Second):
-		_ = pprof.Lookup("exit timeout, goroutines").WriteTo(os.Stdout, 1)
+		_ = pprof.Lookup("goroutine").WriteTo(os.Stdout, 1)
 		t.Error("AB network didn't stop within timeout")
 	}
 }
