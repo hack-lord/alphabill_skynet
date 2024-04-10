@@ -37,7 +37,6 @@ func Eventually(condition func() bool, waitFor time.Duration, tick time.Duration
 // Prefer this helper to require.Evetually when test timeout is small or close to tick timeout.
 func TryTilCountIs(t *testing.T, condition func() bool, cnt uint64, tick time.Duration, msgAndArgs ...interface{}) {
 	ch := make(chan bool, 1)
-	done := make(chan bool, 1)
 
 	count := uint64(0)
 	ticker := time.NewTicker(tick)
@@ -48,17 +47,15 @@ func TryTilCountIs(t *testing.T, condition func() bool, cnt uint64, tick time.Du
 		case <-tick:
 			tick = nil
 			go func() { ch <- condition() }()
-			if count++; count == cnt {
-				done <- true
-			}
 		case v := <-ch:
 			if v {
 				return
 			}
+			if count++; count == cnt {
+				assert.Fail(t, "Condition never satisfied", msgAndArgs...)
+				t.FailNow()
+			}
 			tick = ticker.C
-		case _ = <-done:
-			assert.Fail(t, "Condition never satisfied", msgAndArgs...)
-			t.FailNow()
 		}
 	}
 }
