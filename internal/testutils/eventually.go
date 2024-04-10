@@ -51,7 +51,7 @@ func TryTilCountIs(t *testing.T, condition func() bool, cnt uint64, tick time.Du
 			if v {
 				return
 			}
-			if count++; count == cnt {
+			if count++; count >= cnt {
 				assert.Fail(t, "Condition never satisfied", msgAndArgs...)
 				t.FailNow()
 			}
