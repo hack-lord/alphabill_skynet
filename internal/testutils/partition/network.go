@@ -141,7 +141,7 @@ func newRootPartition(nofRootNodes uint8, nodePartitions []*NodePartition) (*Roo
 			peerCfg.KeyPair.PublicKey,
 			pr,
 			rootgenesis.WithTotalNodes(uint32(nofRootNodes)),
-			rootgenesis.WithBlockRate(300), // set block rate at 300 ms, just to give a bit more time for nodes to bootstrap
+			rootgenesis.WithBlockRate(max(genesis.MinBlockRateMs, 300)), // set block rate at 300 ms to give a bit more time for nodes to bootstrap
 			rootgenesis.WithConsensusTimeout(genesis.DefaultConsensusTimeout))
 		if err != nil {
 			return nil, err
