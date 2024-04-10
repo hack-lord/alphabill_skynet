@@ -98,7 +98,7 @@ func TestBootstrapNodes(t *testing.T) {
 	peer1, err := NewPeer(ctx, peerConf1, log, nil)
 	require.NoError(t, err)
 	defer func() { _ = peer1.Close() }()
-	test.TryTilCountIs(t, func() bool { return peer1.dht.RoutingTable().Size() == 1 }, 40, test.WaitTick)
+	require.Eventually(t, func() bool { return peer1.dht.RoutingTable().Size() == 1 }, test.WaitDuration, test.WaitTick)
 
 	peerConf2, err := NewPeerConfiguration(randomTestAddressStr, generateKeyPair(t), bootstrapNodeAddrInfo, nil)
 	require.NoError(t, err)
@@ -107,10 +107,10 @@ func TestBootstrapNodes(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = peer2.Close() }()
 
-	test.TryTilCountIs(t, func() bool { return peer2.dht.RoutingTable().Size() == 2 }, 40, test.WaitTick)
-	test.TryTilCountIs(t, func() bool { return peer1.dht.RoutingTable().Size() == 2 }, 40, test.WaitTick)
-	test.TryTilCountIs(t, func() bool { return peer2.dht.RoutingTable().Find(peer1.dht.Host().ID()) != "" }, 40, test.WaitTick)
-	test.TryTilCountIs(t, func() bool { return peer1.dht.RoutingTable().Find(peer2.dht.Host().ID()) != "" }, 40, test.WaitTick)
+	require.Eventually(t, func() bool { return peer2.dht.RoutingTable().Size() == 2 }, test.WaitDuration, test.WaitTick)
+	require.Eventually(t, func() bool { return peer1.dht.RoutingTable().Size() == 2 }, test.WaitDuration, test.WaitTick)
+	require.Eventually(t, func() bool { return peer2.dht.RoutingTable().Find(peer1.dht.Host().ID()) != "" }, test.WaitDuration, test.WaitTick)
+	require.Eventually(t, func() bool { return peer1.dht.RoutingTable().Find(peer2.dht.Host().ID()) != "" }, test.WaitDuration, test.WaitTick)
 }
 
 func TestBootstrap_OneBootStrapConnectionFails_StillOK(t *testing.T) {
@@ -137,7 +137,7 @@ func TestBootstrap_OneBootStrapConnectionFails_StillOK(t *testing.T) {
 	peer1, err := NewPeer(ctx, peerConf1, log, nil)
 	require.NoError(t, err)
 	defer func() { _ = peer1.Close() }()
-	test.TryTilCountIs(t, func() bool { return peer1.dht.RoutingTable().Size() == 1 }, 40, test.WaitTick)
+	require.Eventually(t, func() bool { return peer1.dht.RoutingTable().Size() == 1 }, test.WaitDuration, test.WaitTick)
 
 	peerConf2, err := NewPeerConfiguration(randomTestAddressStr, generateKeyPair(t), bootstrapNodeAddrInfo, nil)
 	require.NoError(t, err)
@@ -146,10 +146,10 @@ func TestBootstrap_OneBootStrapConnectionFails_StillOK(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = peer2.Close() }()
 
-	test.TryTilCountIs(t, func() bool { return peer2.dht.RoutingTable().Size() == 2 }, 40, test.WaitTick)
-	test.TryTilCountIs(t, func() bool { return peer1.dht.RoutingTable().Size() == 2 }, 40, test.WaitTick)
-	test.TryTilCountIs(t, func() bool { return peer2.dht.RoutingTable().Find(peer1.dht.Host().ID()) != "" }, 40, test.WaitTick)
-	test.TryTilCountIs(t, func() bool { return peer1.dht.RoutingTable().Find(peer2.dht.Host().ID()) != "" }, 40, test.WaitTick)
+	require.Eventually(t, func() bool { return peer2.dht.RoutingTable().Size() == 2 }, test.WaitDuration, test.WaitTick)
+	require.Eventually(t, func() bool { return peer1.dht.RoutingTable().Size() == 2 }, test.WaitDuration, test.WaitTick)
+	require.Eventually(t, func() bool { return peer2.dht.RoutingTable().Find(peer1.dht.Host().ID()) != "" }, test.WaitDuration, test.WaitTick)
+	require.Eventually(t, func() bool { return peer1.dht.RoutingTable().Find(peer2.dht.Host().ID()) != "" }, test.WaitDuration, test.WaitTick)
 }
 
 func TestBootstrap_AllConnectionsFail(t *testing.T) {
@@ -186,7 +186,7 @@ func TestProvidesAndDiscoverNodes(t *testing.T) {
 	peer1, err := NewPeer(ctx, peerConf1, log, nil)
 	require.NoError(t, err)
 	defer func() { _ = peer1.Close() }()
-	test.TryTilCountIs(t, func() bool { return peer1.dht.RoutingTable().Size() == 1 }, 40, test.WaitTick)
+	require.Eventually(t, func() bool { return peer1.dht.RoutingTable().Size() == 1 }, test.WaitDuration, test.WaitTick)
 
 	peerConf2, err := NewPeerConfiguration(randomTestAddressStr, generateKeyPair(t), bootstrapNodeAddrInfo, nil)
 	require.NoError(t, err)
@@ -200,8 +200,8 @@ func TestProvidesAndDiscoverNodes(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = peer3.Close() }()
 
-	test.TryTilCountIs(t, func() bool { return peer2.dht.RoutingTable().Size() == 3 }, 40, test.WaitTick)
-	test.TryTilCountIs(t, func() bool { return peer1.dht.RoutingTable().Size() == 3 }, 40, test.WaitTick)
+	require.Eventually(t, func() bool { return peer2.dht.RoutingTable().Size() == 3 }, test.WaitDuration, test.WaitTick)
+	require.Eventually(t, func() bool { return peer1.dht.RoutingTable().Size() == 3 }, test.WaitDuration, test.WaitTick)
 	testTopic := "ab/test/test_topic"
 	require.NoError(t, peer2.Advertise(ctx, testTopic))
 	require.NoError(t, peer1.Advertise(ctx, testTopic))

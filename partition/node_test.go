@@ -54,9 +54,9 @@ func TestNode_NodeStartTest(t *testing.T) {
 	// root responds with genesis
 	tp.SubmitUnicityCertificate(tp.partition.luc.Load())
 	// node is initiated
-	test.TryTilCountIs(t, func() bool {
+	require.Eventually(t, func() bool {
 		return tp.partition.status.Load() == normal
-	}, 400, test.WaitTick)
+	}, test.WaitDuration, test.WaitTick)
 }
 
 func TestNode_NodeStartWithRecoverStateFromDB(t *testing.T) {

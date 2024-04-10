@@ -317,7 +317,7 @@ func (n *NodePartition) start(t *testing.T, ctx context.Context, bootNodes []pee
 	}
 	// make sure node network (to other nodes and root nodes) is initiated
 	for _, nd := range n.Nodes {
-		if ok := eventually(
+		if ok := test.Eventually(
 			func() bool { return len(nd.GetPeer().Network().Peers()) >= len(n.Nodes) },
 			2*time.Second, 100*time.Millisecond); !ok {
 			return fmt.Errorf("network not initialized")
@@ -519,7 +519,7 @@ func (a *AlphabillNetwork) WaitClose(t *testing.T) {
 	select {
 	case <-done:
 	case <-time.After(10 * time.Second):
-		_ = pprof.Lookup("goroutine").WriteTo(os.Stdout, 1)
+		_ = pprof.Lookup("exit timeout, goroutines").WriteTo(os.Stdout, 1)
 		t.Error("AB network didn't stop within timeout")
 	}
 }
@@ -604,7 +604,7 @@ func WaitTxProof(t *testing.T, part *NodePartition, txOrder *types.TransactionOr
 		txProof  *types.TxProof
 	)
 	txHash := txOrder.Hash(gocrypto.SHA256)
-	if ok := eventually(func() bool {
+	if ok := test.Eventually(func() bool {
 		for _, n := range part.Nodes {
 			txRec, proof, err := n.GetTransactionRecord(context.Background(), txHash)
 			if errors.Is(err, partition.ErrIndexNotFound) {
@@ -627,7 +627,7 @@ func WaitUnitProof(t *testing.T, part *NodePartition, ID types.UnitID, txOrder *
 		unitProof *types.UnitDataAndProof
 	)
 	txOrderHash := txOrder.Hash(gocrypto.SHA256)
-	if ok := eventually(func() bool {
+	if ok := test.Eventually(func() bool {
 		for _, n := range part.Nodes {
 			unitDataAndProof, err := partition.ReadUnitProofIndex(n.proofDB, ID, txOrderHash)
 			if err != nil {
@@ -734,29 +734,4 @@ func generateKeyPairs(count uint8) ([]*network.PeerKeyPair, error) {
 		}
 	}
 	return keyPairs, nil
-}
-
-func eventually(condition func() bool, waitFor time.Duration, tick time.Duration) bool {
-	ch := make(chan bool, 1)
-
-	timer := time.NewTimer(waitFor)
-	defer timer.Stop()
-
-	ticker := time.NewTicker(tick)
-	defer ticker.Stop()
-
-	for tick := ticker.C; ; {
-		select {
-		case <-timer.C:
-			return false
-		case <-tick:
-			tick = nil
-			go func() { ch <- condition() }()
-		case v := <-ch:
-			if v {
-				return true
-			}
-			tick = ticker.C
-		}
-	}
 }
