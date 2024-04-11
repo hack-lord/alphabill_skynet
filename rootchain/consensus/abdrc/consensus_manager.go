@@ -729,7 +729,8 @@ func (x *ConsensusManager) processQC(ctx context.Context, qc *drctypes.QuorumCer
 		return
 	}
 	select {
-	case <-ctx.Done(): // node is exiting certificates have been stored and we are done
+	case <-ctx.Done():
+		return // node is exiting certificates have been stored and we are done
 	case x.ucSink <- certs: // trigger update to partition nodes
 	}
 
