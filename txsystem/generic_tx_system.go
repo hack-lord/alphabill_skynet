@@ -181,16 +181,8 @@ func (m *GenericTxSystem) doExecute(tx *types.TransactionOrder, exeCtx *txtypes.
 		// set the correct success indicator
 		if txExecErr != nil {
 			m.log.Debug("tx execute failed", logger.Error(txExecErr))
-			if errors.Is(txExecErr, txtypes.ErrOutOfGas) {
-				result.SuccessIndicator = types.TxErrOutOfGas
-			} else {
-				result.SuccessIndicator = types.TxStatusFailed
-			}
-			result.SetErrorDetail(txExecErr)
-			// cleanup updated target units too, Tx is atomic either everything succeeds or nothing is changed
-			sm.TargetUnits = []types.UnitID{}
-		}
-		if sm.SuccessIndicator != types.TxStatusSuccessful {
+			// will set correct error status and clean up target units
+			result.SetError(txExecErr)
 			// transaction execution failed. revert every change made by the transaction order
 			m.state.RollbackToSavepoint(savepointID)
 		}

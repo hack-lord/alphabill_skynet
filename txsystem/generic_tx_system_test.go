@@ -121,7 +121,7 @@ func Test_GenericTxSystem_Execute(t *testing.T) {
 	})
 
 	t.Run("tx validate returns out of gas", func(t *testing.T) {
-		expErr := txtypes.ErrOutOfGas
+		expErr := types.ErrOutOfGas
 		m := NewMockTxModule(nil)
 		m.ValidateError = expErr
 		txSys := NewTestGenericTxSystem(t, []txtypes.Module{m})
