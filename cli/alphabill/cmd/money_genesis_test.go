@@ -22,7 +22,6 @@ import (
 )
 
 func Test_MoneyGenesis(t *testing.T) {
-	//pdrFilename, err := createPDRFile("/Users/ain/go/src/alphabill/docs", defaultMoneyPDR)
 	pdrFilename, err := createPDRFile(t.TempDir(), defaultMoneyPDR)
 	require.NoError(t, err)
 	pdrArgument := " --partition-description " + pdrFilename
