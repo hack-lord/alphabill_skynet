@@ -102,8 +102,8 @@ func TestPartitionNodeIsValid(t *testing.T) {
 	pubKey, err := verifier.MarshalPublicKey()
 	require.NoError(t, err)
 	req := &certification.BlockCertificationRequest{
-		SystemIdentifier: 1,
-		NodeIdentifier:   nodeIdentifier,
+		Partition:      1,
+		NodeIdentifier: nodeIdentifier,
 		InputRecord: &types.InputRecord{
 			PreviousHash: make([]byte, 32),
 			Hash:         make([]byte, 32),
