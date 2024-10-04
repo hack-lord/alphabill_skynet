@@ -157,6 +157,7 @@ func NewNodeGenesis(state *state.State, pdr types.PartitionDescriptionRecord, op
 
 	// partition node
 	node := &genesis.PartitionNode{
+		Version:                   1,
 		NodeIdentifier:            id,
 		SigningPublicKey:          signingPubKey,
 		EncryptionPublicKey:       c.encryptionPubKeyBytes,

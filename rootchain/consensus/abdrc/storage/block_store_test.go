@@ -36,10 +36,10 @@ func (m *MockAlwaysOkBlockVerifier) VerifyIRChangeReq(_ uint64, irChReq *drctype
 	switch irChReq.CertReason {
 	case drctypes.Quorum:
 		// NB! there was at least one request, otherwise we would not be here
-		return &InputData{IR: irChReq.Requests[0].InputRecord, PDRH: luc.UC.UnicityTreeCertificate.PartitionDescriptionHash}, nil
+		return &InputData{IR: irChReq.Requests[0].InputRecord, PDRHash: luc.UC.UnicityTreeCertificate.PartitionDescriptionHash}, nil
 	case drctypes.QuorumNotPossible:
 	case drctypes.T2Timeout:
-		return &InputData{Partition: irChReq.Partition, IR: luc.UC.InputRecord, PDRH: luc.UC.UnicityTreeCertificate.PartitionDescriptionHash}, nil
+		return &InputData{Partition: irChReq.Partition, IR: luc.UC.InputRecord, PDRHash: luc.UC.UnicityTreeCertificate.PartitionDescriptionHash}, nil
 	}
 	return nil, fmt.Errorf("unknown certification reason %v", irChReq.CertReason)
 }
@@ -97,15 +97,16 @@ func TestNewBlockStoreFromDB_MultipleRoots(t *testing.T) {
 	vInfo9 := &drctypes.RoundInfo{RoundNumber: 9, ParentRoundNumber: 8}
 	b10 := fakeBlock(10, &drctypes.QuorumCert{
 		VoteInfo: vInfo9,
-		LedgerCommitInfo: &types.UnicitySeal{
+		LedgerCommitInfo: &types.UnicitySeal{Version: 1,
 			PreviousHash: vInfo9.Hash(gocrypto.SHA256),
+			Hash:         test.RandomBytes(32),
 		},
 	})
 	require.NoError(t, db.Write(blockKey(b10.GetRound()), b10))
 	vInfo8 := &drctypes.RoundInfo{RoundNumber: 8, ParentRoundNumber: 7}
 	b9 := fakeBlock(9, &drctypes.QuorumCert{
 		VoteInfo: vInfo8,
-		LedgerCommitInfo: &types.UnicitySeal{
+		LedgerCommitInfo: &types.UnicitySeal{Version: 1,
 			PreviousHash:         vInfo8.Hash(gocrypto.SHA256),
 			RootChainRoundNumber: 8,
 			Hash:                 test.RandomBytes(32),
@@ -117,6 +118,7 @@ func TestNewBlockStoreFromDB_MultipleRoots(t *testing.T) {
 	b8 := fakeBlock(8, &drctypes.QuorumCert{
 		VoteInfo: vInfo7,
 		LedgerCommitInfo: &types.UnicitySeal{
+			Version:              1,
 			PreviousHash:         vInfo7.Hash(gocrypto.SHA256),
 			RootChainRoundNumber: 7,
 			Hash:                 test.RandomBytes(32),
@@ -246,7 +248,7 @@ func TestBlockStoreAdd(t *testing.T) {
 	}
 	qc := &drctypes.QuorumCert{
 		VoteInfo: vInfo,
-		LedgerCommitInfo: &types.UnicitySeal{
+		LedgerCommitInfo: &types.UnicitySeal{Version: 1,
 			Hash: rBlock.RootHash,
 		},
 	}
@@ -274,7 +276,7 @@ func TestBlockStoreAdd(t *testing.T) {
 	}
 	qc = &drctypes.QuorumCert{
 		VoteInfo: vInfo,
-		LedgerCommitInfo: &types.UnicitySeal{
+		LedgerCommitInfo: &types.UnicitySeal{Version: 1,
 			Hash: rBlock.RootHash,
 		},
 	}

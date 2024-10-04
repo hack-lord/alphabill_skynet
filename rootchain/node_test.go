@@ -387,7 +387,7 @@ func TestRootValidatorTest_SimulateNetCommunicationHandshake(t *testing.T) {
 			UnicityTreeCertificate: &types.UnicityTreeCertificate{
 				SystemIdentifier: partitionID,
 			},
-			UnicitySeal: &types.UnicitySeal{},
+			UnicitySeal: &types.UnicitySeal{Version: 1},
 		},
 	}
 	rootValidator.onCertificationResult(ctx, &cr)
@@ -479,7 +479,7 @@ func TestRootValidatorTest_SimulateResponse(t *testing.T) {
 			UnicityTreeCertificate: &types.UnicityTreeCertificate{
 				SystemIdentifier: partitionID,
 			},
-			UnicitySeal: &types.UnicitySeal{},
+			UnicitySeal: &types.UnicitySeal{Version: 1},
 		},
 	}
 	// simulate 2x subscriptions
@@ -518,7 +518,7 @@ func TestRootValidator_ResultUnknown(t *testing.T) {
 			UnicityTreeCertificate: &types.UnicityTreeCertificate{
 				SystemIdentifier: unknownID,
 			},
-			UnicitySeal: &types.UnicitySeal{},
+			UnicitySeal: &types.UnicitySeal{Version: 1},
 		},
 	}
 	// simulate response from consensus manager

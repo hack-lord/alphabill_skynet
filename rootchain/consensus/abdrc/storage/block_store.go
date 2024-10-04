@@ -342,7 +342,7 @@ func ToRecoveryInputData(data []*InputData) []*abdrc.InputData {
 			Shard:     d.Shard,
 			Ir:        d.IR,
 			Technical: d.Technical,
-			Sdrh:      d.PDRH,
+			Sdrh:      d.PDRHash,
 		}
 	}
 	return inputData

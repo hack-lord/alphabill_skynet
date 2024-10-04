@@ -40,7 +40,7 @@ func (s *MockState) GetCertificates() []*certification.CertificationResponse {
 		UC: types.UnicityCertificate{
 			InputRecord:            irSysID1,
 			UnicityTreeCertificate: &types.UnicityTreeCertificate{},
-			UnicitySeal: &types.UnicitySeal{
+			UnicitySeal: &types.UnicitySeal{Version: 1,
 				RootChainRoundNumber: 1,
 			},
 		},

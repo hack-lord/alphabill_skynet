@@ -328,7 +328,7 @@ func (rcn *Node) getShardInfo(partition types.SystemID, shard types.ShardID) *sh
 		// as we currently do not support epochs the data of the previous epoch
 		// is "zero value constant", ie we can use precalculated "genesis values".
 		// Once we implement epochs correct value must be recovered on node startup!
-		PrevEpochSR:   emptyStatRecSerialized,
+		PrevEpochStat: emptyStatRecSerialized,
 		PrevEpochFees: nil,
 	}
 	rcn.shardInfo[key] = si

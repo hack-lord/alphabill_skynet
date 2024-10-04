@@ -301,7 +301,7 @@ func TestIRChangeReqMsg_VerifyTimeoutReq(t *testing.T) {
 		}
 		luc := &types.UnicityCertificate{
 			InputRecord: &types.InputRecord{Hash: prevHash, RoundNumber: 1},
-			UnicitySeal: &types.UnicitySeal{
+			UnicitySeal: &types.UnicitySeal{Version: 1,
 				RootChainRoundNumber: 1,
 			},
 		}
@@ -324,7 +324,7 @@ func TestIRChangeReqMsg_VerifyTimeoutReq(t *testing.T) {
 		}
 		luc := &types.UnicityCertificate{
 			InputRecord: &types.InputRecord{Hash: prevHash, RoundNumber: 1},
-			UnicitySeal: &types.UnicitySeal{
+			UnicitySeal: &types.UnicitySeal{Version: 1,
 				RootChainRoundNumber: 1,
 			},
 		}
@@ -347,7 +347,7 @@ func TestIRChangeReqMsg_VerifyTimeoutReq(t *testing.T) {
 		}
 		luc := &types.UnicityCertificate{
 			InputRecord: &types.InputRecord{Hash: prevHash, RoundNumber: 1},
-			UnicitySeal: &types.UnicitySeal{
+			UnicitySeal: &types.UnicitySeal{Version: 1,
 				RootChainRoundNumber: 1,
 			},
 		}
@@ -381,7 +381,7 @@ func TestIRChangeReqMsg_VerifyQuorum(t *testing.T) {
 		}
 		luc := &types.UnicityCertificate{
 			InputRecord: &types.InputRecord{Hash: prevHash, RoundNumber: 1},
-			UnicitySeal: &types.UnicitySeal{RootChainRoundNumber: 1},
+			UnicitySeal: &types.UnicitySeal{Version: 1, RootChainRoundNumber: 1},
 		}
 		ir, err := x.Verify(tb, luc, 0, 0)
 		require.EqualError(t, err, "invalid partition 00000001 quorum proof: not enough requests to prove quorum (got 1, need 2)")
@@ -409,7 +409,7 @@ func TestIRChangeReqMsg_VerifyQuorum(t *testing.T) {
 		}
 		luc := &types.UnicityCertificate{
 			InputRecord: &types.InputRecord{Hash: []byte{0, 0, 1}, RoundNumber: 1},
-			UnicitySeal: &types.UnicitySeal{RootChainRoundNumber: 1},
+			UnicitySeal: &types.UnicitySeal{Version: 1, RootChainRoundNumber: 1},
 		}
 		ir, err := x.Verify(tb, luc, 0, 0)
 		require.EqualError(t, err, "invalid certification request: request extends unknown state: expected hash: [0 0 1], got: [0 0 0]")
@@ -437,7 +437,7 @@ func TestIRChangeReqMsg_VerifyQuorum(t *testing.T) {
 		}
 		luc := &types.UnicityCertificate{
 			InputRecord: &types.InputRecord{Hash: prevHash, RoundNumber: 1},
-			UnicitySeal: &types.UnicitySeal{RootChainRoundNumber: 2},
+			UnicitySeal: &types.UnicitySeal{Version: 1, RootChainRoundNumber: 2},
 		}
 		ir, err := x.Verify(tb, luc, 0, 0)
 		require.EqualError(t, err, "invalid certification request: request root round number 1 does not match luc root round 2")
@@ -472,7 +472,7 @@ func TestIRChangeReqMsg_VerifyQuorum(t *testing.T) {
 		}
 		luc := &types.UnicityCertificate{
 			InputRecord: &types.InputRecord{Hash: prevHash, RoundNumber: 1},
-			UnicitySeal: &types.UnicitySeal{RootChainRoundNumber: 1},
+			UnicitySeal: &types.UnicitySeal{Version: 1, RootChainRoundNumber: 1},
 		}
 		ir, err := x.Verify(tb, luc, 0, 0)
 		require.EqualError(t, err, "invalid partition 00000001 quorum proof: contains proofs for different state hashes")
@@ -500,7 +500,7 @@ func TestIRChangeReqMsg_VerifyQuorum(t *testing.T) {
 		}
 		luc := &types.UnicityCertificate{
 			InputRecord: &types.InputRecord{Hash: prevHash, RoundNumber: 1},
-			UnicitySeal: &types.UnicitySeal{RootChainRoundNumber: 1},
+			UnicitySeal: &types.UnicitySeal{Version: 1, RootChainRoundNumber: 1},
 		}
 		ir, err := x.Verify(tb, luc, 0, 0)
 		require.NoError(t, err)

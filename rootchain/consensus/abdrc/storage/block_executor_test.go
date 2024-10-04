@@ -33,7 +33,7 @@ func NewAlwaysTrueIRReqVerifier() *mockIRVerifier {
 type mockIRVerifier struct{}
 
 func (x *mockIRVerifier) VerifyIRChangeReq(_ uint64, irChReq *drctypes.IRChangeReq) (*InputData, error) {
-	return &InputData{Partition: irChReq.Partition, IR: irChReq.Requests[0].InputRecord, PDRH: []byte{0, 0, 0, 0, 1}}, nil
+	return &InputData{Partition: irChReq.Partition, IR: irChReq.Requests[0].InputRecord, PDRHash: []byte{0, 0, 0, 0, 1}}, nil
 }
 
 func generateBlockData(round uint64, req ...*drctypes.IRChangeReq) *drctypes.BlockData {
@@ -63,7 +63,7 @@ func TestNewExecutedBlockFromGenesis(t *testing.T) {
 	data := b.CurrentIR.Find(partitionID1)
 	require.Equal(t, rootGenesis.Partitions[0].PartitionDescription.SystemIdentifier, data.Partition)
 	require.Equal(t, rootGenesis.Partitions[0].Certificate.InputRecord, data.IR)
-	require.Equal(t, rootGenesis.Partitions[0].Certificate.UnicityTreeCertificate.PartitionDescriptionHash, data.PDRH)
+	require.Equal(t, rootGenesis.Partitions[0].Certificate.UnicityTreeCertificate.PartitionDescriptionHash, data.PDRHash)
 	require.Empty(t, b.Changed)
 	require.Len(t, b.RootHash, 32)
 	require.Len(t, b.Changed, 0)
@@ -146,7 +146,7 @@ func TestExecutedBlock_GenerateCertificates(t *testing.T) {
 					RoundNumber:     3,
 					SumOfEarnedFees: 4,
 				},
-				PDRH: []byte{1, 2, 3, 4},
+				PDRHash: []byte{1, 2, 3, 4},
 			},
 			{
 				Partition: partitionID2,
@@ -158,7 +158,7 @@ func TestExecutedBlock_GenerateCertificates(t *testing.T) {
 					RoundNumber:     3,
 					SumOfEarnedFees: 6,
 				},
-				PDRH: []byte{4, 5, 6, 7},
+				PDRHash: []byte{4, 5, 6, 7},
 			},
 		},
 		Changed:  []types.SystemID{partitionID1, partitionID2},
@@ -171,7 +171,7 @@ func TestExecutedBlock_GenerateCertificates(t *testing.T) {
 			ParentRoundNumber: 2,
 			CurrentRootHash:   make([]byte, gocrypto.SHA256.Size()),
 		},
-		LedgerCommitInfo: &types.UnicitySeal{
+		LedgerCommitInfo: &types.UnicitySeal{Version: 1,
 			PreviousHash: []byte{0, 0, 0, 0},
 			Hash:         make([]byte, gocrypto.SHA256.Size()),
 		},
@@ -187,7 +187,7 @@ func TestExecutedBlock_GenerateCertificates(t *testing.T) {
 			ParentRoundNumber: 2,
 			CurrentRootHash:   make([]byte, gocrypto.SHA256.Size()),
 		},
-		LedgerCommitInfo: &types.UnicitySeal{
+		LedgerCommitInfo: &types.UnicitySeal{Version: 1,
 			PreviousHash: []byte{0, 0, 0, 0},
 			Hash:         []byte{0x9b, 0x98, 0xf9, 0x3b, 0xcf, 0x8d, 0xd8, 0x74, 0x88, 0xe6, 0x2c, 0xd5, 0x2f, 0x15, 0x10, 0xa5, 0xc6, 0xd1, 0xad, 0xc, 0xc3, 0x8f, 0xf8, 0xca, 0x87, 0x9b, 0x85, 0x66, 0x99, 0x6b, 0xef, 0xa3},
 		},

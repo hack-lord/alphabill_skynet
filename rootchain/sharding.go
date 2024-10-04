@@ -18,7 +18,7 @@ type shardInfo struct {
 
 	// statistical record of the previous epoch. As we only need
 	// it for hashing we keep it in serialized representation
-	PrevEpochSR []byte
+	PrevEpochStat []byte
 
 	// statistical record of the current epoch
 	Stat certification.StatisticalRecord
@@ -39,7 +39,7 @@ for use in Technical Record.
 */
 func (si *shardInfo) StatHash(algo crypto.Hash) []byte {
 	h := algo.New()
-	h.Write(si.PrevEpochSR)
+	h.Write(si.PrevEpochStat)
 	h.Write(si.Stat.Bytes())
 	return h.Sum(nil)
 }

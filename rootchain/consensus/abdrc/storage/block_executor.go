@@ -20,7 +20,7 @@ type (
 		Shard     types.ShardID
 		IR        *types.InputRecord
 		Technical certification.TechnicalRecord
-		PDRH      []byte // Partition Description Record Hash
+		PDRHash   []byte // Partition Description Record Hash
 	}
 
 	InputRecords []*InputData
@@ -72,6 +72,7 @@ func QcFromGenesisState(partitionRecords []*genesis.GenesisPartitionRecord) *drc
 				CurrentRootHash:   p.Certificate.UnicitySeal.Hash,
 			},
 			LedgerCommitInfo: &types.UnicitySeal{
+				Version:              1,
 				PreviousHash:         p.Certificate.UnicitySeal.PreviousHash,
 				RootChainRoundNumber: p.Certificate.UnicitySeal.RootChainRoundNumber,
 				Hash:                 p.Certificate.UnicitySeal.Hash,
@@ -89,7 +90,7 @@ func NewGenesisBlock(hash gocrypto.Hash, pg []*genesis.GenesisPartitionRecord) *
 		data[i] = &InputData{
 			Partition: partition.PartitionDescription.SystemIdentifier,
 			IR:        partition.Certificate.InputRecord,
-			PDRH:      partition.Certificate.UnicityTreeCertificate.PartitionDescriptionHash,
+			PDRHash:   partition.Certificate.UnicityTreeCertificate.PartitionDescriptionHash,
 		}
 	}
 	qc := QcFromGenesisState(pg)
@@ -129,7 +130,7 @@ func NewRootBlock(hash gocrypto.Hash, block *abdrc.CommittedBlock) (*ExecutedBlo
 			Shard:     d.Shard,
 			IR:        d.Ir,
 			Technical: d.Technical,
-			PDRH:      d.Sdrh,
+			PDRHash:   d.Sdrh,
 		}
 	}
 	// calculate root hash
@@ -138,7 +139,7 @@ func NewRootBlock(hash gocrypto.Hash, block *abdrc.CommittedBlock) (*ExecutedBlo
 		utData = append(utData, &types.UnicityTreeData{
 			SystemIdentifier:         data.Partition,
 			InputRecord:              data.IR,
-			PartitionDescriptionHash: data.PDRH,
+			PartitionDescriptionHash: data.PDRHash,
 		})
 	}
 	ut, err := unicitytree.New(hash, utData)
@@ -184,7 +185,7 @@ func NewExecutedBlock(hash gocrypto.Hash, newBlock *drctypes.BlockData, parent *
 		utData = append(utData, &types.UnicityTreeData{
 			SystemIdentifier:         data.Partition,
 			InputRecord:              data.IR,
-			PartitionDescriptionHash: data.PDRH,
+			PartitionDescriptionHash: data.PDRHash,
 		})
 	}
 	ut, err := unicitytree.New(hash, utData)
@@ -208,7 +209,7 @@ func (x *ExecutedBlock) generateUnicityTree() (*unicitytree.UnicityTree, error) 
 		utData = append(utData, &types.UnicityTreeData{
 			SystemIdentifier:         data.Partition,
 			InputRecord:              data.IR,
-			PartitionDescriptionHash: data.PDRH,
+			PartitionDescriptionHash: data.PDRHash,
 		})
 	}
 	return unicitytree.New(x.HashAlgo, utData)
@@ -231,6 +232,7 @@ func (x *ExecutedBlock) GenerateCertificates(commitQc *drctypes.QuorumCert) ([]*
 	// Commit pending state if it has the same root hash as committed state
 	// create UnicitySeal for pending certificates
 	uSeal := &types.UnicitySeal{
+		Version:              1,
 		RootChainRoundNumber: commitQc.LedgerCommitInfo.RootChainRoundNumber,
 		Hash:                 commitQc.LedgerCommitInfo.Hash,
 		Timestamp:            commitQc.LedgerCommitInfo.Timestamp,

@@ -94,7 +94,7 @@ func (x *IRChangeReqVerifier) VerifyIRChangeReq(round uint64, irChReq *abtypes.I
 			Shard:     irChReq.Shard,
 			IR:        inputRecord,
 			Technical: irChReq.Technical,
-			PDRH:      sysDesRecord.Hash(x.params.HashAlgorithm),
+			PDRHash:   sysDesRecord.Hash(x.params.HashAlgorithm),
 		},
 		nil
 }
