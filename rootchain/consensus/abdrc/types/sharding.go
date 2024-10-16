@@ -254,13 +254,22 @@ func (si *ShardInfo) ValidRequest(req *certification.BlockCertificationRequest) 
 }
 
 func (si *ShardInfo) GetQuorum() uint64 {
+	si.m.Lock()
+	defer si.m.Unlock()
 	// at least 50%
 	return uint64(len(si.trustBase)/2) + 1
 }
 
-func (si *ShardInfo) GetTotalNodes() uint64 { return uint64(len(si.trustBase)) }
+func (si *ShardInfo) GetTotalNodes() uint64 {
+	si.m.Lock()
+	defer si.m.Unlock()
+	return uint64(len(si.trustBase))
+}
 
 func (si *ShardInfo) Verify(nodeID string, f func(v abcrypto.Verifier) error) error {
+	si.m.Lock()
+	defer si.m.Unlock()
+
 	if v, ok := si.trustBase[nodeID]; ok {
 		return f(v)
 	}
