@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"sync"
 
 	abcrypto "github.com/alphabill-org/alphabill-go-base/crypto"
 	abhash "github.com/alphabill-org/alphabill-go-base/hash"
@@ -20,8 +21,8 @@ type Orchestration interface {
 	ShardConfig(partition types.SystemID, shard types.ShardID, epoch uint64) (*genesis.GenesisPartitionRecord, error)
 }
 
-func NewShardInfoFromGenesis(pg *genesis.GenesisPartitionRecord, orc Orchestration) (ShardInfo, error) {
-	si := ShardInfo{
+func NewShardInfoFromGenesis(pg *genesis.GenesisPartitionRecord, orc Orchestration) (*ShardInfo, error) {
+	si := &ShardInfo{
 		Round:         pg.Certificate.InputRecord.RoundNumber,
 		Epoch:         pg.Certificate.InputRecord.Epoch,
 		RootHash:      pg.Certificate.InputRecord.Hash,
@@ -73,6 +74,7 @@ type ShardInfo struct {
 
 	nodeIDs   []string // sorted list of partition node IDs
 	trustBase map[string]abcrypto.Verifier
+	m         sync.Mutex
 }
 
 /*
@@ -111,6 +113,9 @@ func (si *ShardInfo) Init(pg *genesis.GenesisPartitionRecord) error {
 }
 
 func (si *ShardInfo) NextEpoch(pg *genesis.GenesisPartitionRecord) (*ShardInfo, error) {
+	si.m.Lock()
+	defer si.m.Unlock()
+
 	if nextEpoch := pg.Certificate.InputRecord.Epoch; nextEpoch != si.Epoch+1 {
 		return nil, fmt.Errorf("epochs must be consecutive, current is %d proposed next %d", si.Epoch, nextEpoch)
 	}
@@ -137,21 +142,21 @@ func (si *ShardInfo) NextEpoch(pg *genesis.GenesisPartitionRecord) (*ShardInfo, 
 StatHash returns hash of the StatisticalRecord, suitable
 for use in Technical Record.
 */
-func (si *ShardInfo) StatHash(algo crypto.Hash) ([]byte, error) {
+func (si *ShardInfo) statHash(algo crypto.Hash) ([]byte, error) {
 	h := abhash.New(algo.New())
 	h.WriteRaw(si.PrevEpochStat)
 	h.Write(si.Stat)
 	return h.Sum()
 }
 
-func (si *ShardInfo) FeeHash(algo crypto.Hash) ([]byte, error) {
+func (si *ShardInfo) feeHash(algo crypto.Hash) ([]byte, error) {
 	h := abhash.New(algo.New())
 	h.WriteRaw(si.PrevEpochFees)
 	h.Write(si.Fees)
 	return h.Sum()
 }
 
-func (si *ShardInfo) Update(req *certification.BlockCertificationRequest) {
+func (si *ShardInfo) update(req *certification.BlockCertificationRequest) {
 	si.Round = req.IRRound()
 	si.RootHash = req.InputRecord.Hash
 	// we need to get current leader form CR until we implement validator
@@ -170,17 +175,20 @@ func (si *ShardInfo) Update(req *certification.BlockCertificationRequest) {
 }
 
 func (si *ShardInfo) TechnicalRecord(req *certification.BlockCertificationRequest, orc Orchestration) (tr certification.TechnicalRecord, err error) {
+	si.m.Lock()
+	defer si.m.Unlock()
+
 	// timeout IRChangeRequest doesn't have BlockCertificationRequest
 	if req != nil {
-		si.Update(req)
+		si.update(req)
 	}
 	tr.Round = si.Round + 1
 	tr.Epoch = si.Epoch
 
-	if tr.FeeHash, err = si.FeeHash(crypto.SHA256); err != nil {
+	if tr.FeeHash, err = si.feeHash(crypto.SHA256); err != nil {
 		return tr, fmt.Errorf("hashing fees: %w", err)
 	}
-	if tr.StatHash, err = si.StatHash(crypto.SHA256); err != nil {
+	if tr.StatHash, err = si.statHash(crypto.SHA256); err != nil {
 		return tr, fmt.Errorf("hashing statistics: %w", err)
 	}
 
@@ -207,6 +215,9 @@ func (si *ShardInfo) TechnicalRecord(req *certification.BlockCertificationReques
 }
 
 func (si *ShardInfo) SetLatestCert(cert *certification.CertificationResponse) error {
+	si.m.Lock()
+	defer si.m.Unlock()
+
 	si.LastCR = cert
 	si.Epoch = cert.Technical.Epoch
 	return nil
@@ -219,6 +230,8 @@ func (si *ShardInfo) ValidRequest(req *certification.BlockCertificationRequest) 
 	if req.Leader == "" {
 		return errors.New("leader ID must be assigned")
 	}
+	si.m.Lock()
+	defer si.m.Unlock()
 
 	if err := si.Verify(req.NodeIdentifier, req.IsValid); err != nil {
 		return fmt.Errorf("invalid certification request: %w", err)

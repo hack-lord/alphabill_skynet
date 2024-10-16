@@ -49,7 +49,7 @@ type MockConsensusManager struct {
 	certReqCh    chan consensus.IRChangeRequest
 	certResultCh chan *certification.CertificationResponse
 	certs        map[types.SystemID]*certification.CertificationResponse
-	shardInfo    map[types.SystemID]drctypes.ShardInfo // only single shard partitions
+	shardInfo    map[types.SystemID]*drctypes.ShardInfo // only single shard partitions
 }
 
 func NewMockConsensus(rg *genesis.RootGenesis) (*MockConsensusManager, error) {
@@ -62,7 +62,7 @@ func NewMockConsensus(rg *genesis.RootGenesis) (*MockConsensusManager, error) {
 	}
 
 	orchestration := partitions.NewOrchestration(rg)
-	shardInfo := map[types.SystemID]drctypes.ShardInfo{}
+	shardInfo := map[types.SystemID]*drctypes.ShardInfo{}
 	for _, partition := range rg.Partitions {
 		si, err := drctypes.NewShardInfoFromGenesis(partition, orchestration)
 		if err != nil {
@@ -108,7 +108,7 @@ func (m *MockConsensusManager) GetLatestUnicityCertificate(id types.SystemID, sh
 
 func (m *MockConsensusManager) ShardInfo(partition types.SystemID, shard types.ShardID) (*drctypes.ShardInfo, error) {
 	if si, ok := m.shardInfo[partition]; ok {
-		return &si, nil
+		return si, nil
 	}
 	return nil, fmt.Errorf("no ShardInfo for %s - %s", partition, shard)
 }

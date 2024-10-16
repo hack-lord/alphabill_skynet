@@ -27,7 +27,7 @@ func Test_shardInfo_Update(t *testing.T) {
 			Leader:    "1234567890",
 		}
 		si := ShardInfo{Fees: make(map[string]uint64)}
-		si.Update(cr)
+		si.update(cr)
 
 		require.EqualValues(t, cr.InputRecord.RoundNumber, si.Round)
 		require.EqualValues(t, cr.InputRecord.Hash, si.RootHash)
@@ -57,7 +57,7 @@ func Test_shardInfo_Update(t *testing.T) {
 			BlockSize: 1002,
 			StateSize: 1003,
 		}
-		si.Update(cr)
+		si.update(cr)
 		require.EqualValues(t, 2000, si.Stat.MaxBlockSize)
 		require.EqualValues(t, 2000, si.Stat.MaxStateSize)
 		require.EqualValues(t, 2000, si.Stat.MaxFee)
@@ -66,7 +66,7 @@ func Test_shardInfo_Update(t *testing.T) {
 		cr.BlockSize = 3001
 		cr.StateSize = 3002
 		cr.InputRecord.SumOfEarnedFees = 3003
-		si.Update(cr)
+		si.update(cr)
 		require.EqualValues(t, 3001, si.Stat.MaxBlockSize)
 		require.EqualValues(t, 3002, si.Stat.MaxStateSize)
 		require.EqualValues(t, 3003, si.Stat.MaxFee)
@@ -82,12 +82,12 @@ func Test_shardInfo_Update(t *testing.T) {
 				PreviousHash: []byte{1, 1, 1, 1},
 			},
 		}
-		si.Update(cr)
+		si.update(cr)
 		require.Zero(t, si.Stat.Blocks)
 
 		// state changes, should count the block
 		cr.InputRecord.Hash = append(cr.InputRecord.Hash, 0)
-		si.Update(cr)
+		si.update(cr)
 		require.EqualValues(t, 1, si.Stat.Blocks)
 	})
 }

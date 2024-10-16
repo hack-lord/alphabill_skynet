@@ -128,7 +128,7 @@ func NewFromState(hash crypto.Hash, stateMsg *abdrc.StateMsg, db keyvaluedb.KeyV
 	}
 	certificates := make(map[partitionShard]*drctypes.ShardInfo)
 	for _, siState := range stateMsg.ShardInfo {
-		si := drctypes.ShardInfo{
+		si := &drctypes.ShardInfo{
 			Round:         siState.Round,
 			Epoch:         siState.Epoch,
 			RootHash:      siState.RootHash,
@@ -154,7 +154,7 @@ func NewFromState(hash crypto.Hash, stateMsg *abdrc.StateMsg, db keyvaluedb.KeyV
 			return nil, fmt.Errorf("failed to write shard info of partition %s into storage: %w", siState.Partition, err)
 		}
 		// update cache
-		certificates[partitionShard{partition: siState.Partition, shard: siState.Shard.Key()}] = &si
+		certificates[partitionShard{partition: siState.Partition, shard: siState.Shard.Key()}] = si
 	}
 
 	// create new root node

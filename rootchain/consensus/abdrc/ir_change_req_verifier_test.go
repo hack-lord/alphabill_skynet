@@ -86,7 +86,7 @@ func TestIRChangeReqVerifier_VerifyIRChangeReq(t *testing.T) {
 			irInProgress: irs,
 			shardInfo: func(partition types.SystemID, shard types.ShardID) (*abtypes.ShardInfo, error) {
 				si, err := abtypes.NewShardInfoFromGenesis(genesisPartitions[0], orchestration)
-				return &si, err
+				return si, err
 			},
 		}
 	}
@@ -371,7 +371,7 @@ func TestPartitionTimeoutGenerator_GetT2Timeouts(t *testing.T) {
 	state := &MockState{
 		shardInfo: func(partition types.SystemID, shard types.ShardID) (*abtypes.ShardInfo, error) {
 			si, err := abtypes.NewShardInfoFromGenesis(genesisPartitions[0], orchestration)
-			return &si, err
+			return si, err
 		},
 	}
 	tmoGen := &PartitionTimeoutGenerator{
