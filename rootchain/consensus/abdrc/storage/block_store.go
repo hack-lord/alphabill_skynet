@@ -78,7 +78,9 @@ func readCertificates(db keyvaluedb.KeyValueDB, pg []*genesis.GenesisPartitionRe
 			if !ok {
 				return nil, fmt.Errorf("shard info {%s - %s} not found", partition, shard)
 			}
-			si.Init(genRec)
+			if err = si.Init(genRec); err != nil {
+				return nil, fmt.Errorf("init shard info {%s - %s}: %w", partition, shard, err)
+			}
 			ucs[partitionShard{partition: partition, shard: shard.Key()}] = &si
 		}
 	}
@@ -148,7 +150,9 @@ func NewFromState(hash crypto.Hash, stateMsg *abdrc.StateMsg, db keyvaluedb.KeyV
 		if err != nil {
 			return nil, fmt.Errorf("acquiring shard configuration: %w", err)
 		}
-		si.Init(pg)
+		if err = si.Init(pg); err != nil {
+			return nil, fmt.Errorf("init shard info (%d): %w", siState.Partition, err)
+		}
 		// persist changes
 		if err := db.Write(certKey(siState.Partition, siState.Shard), si); err != nil {
 			return nil, fmt.Errorf("failed to write shard info of partition %s into storage: %w", siState.Partition, err)
