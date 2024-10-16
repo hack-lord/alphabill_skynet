@@ -230,12 +230,13 @@ func (si *ShardInfo) ValidRequest(req *certification.BlockCertificationRequest) 
 	if req.Leader == "" {
 		return errors.New("leader ID must be assigned")
 	}
-	si.m.Lock()
-	defer si.m.Unlock()
 
 	if err := si.Verify(req.NodeIdentifier, req.IsValid); err != nil {
 		return fmt.Errorf("invalid certification request: %w", err)
 	}
+
+	si.m.Lock()
+	defer si.m.Unlock()
 
 	if req.IRRound() != si.Round+1 {
 		return fmt.Errorf("expected round %d, got %d", si.Round+1, req.IRRound())
