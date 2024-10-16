@@ -172,11 +172,11 @@ func Test_ShardInfo_NextEpoch(t *testing.T) {
 		      43 # "C"
 		   03    # unsigned(3)
 	*/
-	require.Equal(t, []byte{0xa3, 0x61, 0x41, 0x1, 0x61, 0x42, 0x2, 0x61, 0x43, 0x3}, nextSI.PrevEpochFees)
+	require.Equal(t, types.RawCBOR{0xa3, 0x61, 0x41, 0x1, 0x61, 0x42, 0x2, 0x61, 0x43, 0x3}, nextSI.PrevEpochFees)
 	// fee list is initialized to new validator list
 	require.Equal(t, map[string]uint64{"2222": 0}, nextSI.Fees)
 	// array of 7 items, sorted by field name
-	require.Equal(t, []byte{0x87, 0, 1, 2, 3, 4, 5, 6}, nextSI.PrevEpochStat)
+	require.Equal(t, types.RawCBOR{0x87, 0, 1, 2, 3, 4, 5, 6}, nextSI.PrevEpochStat)
 	require.Equal(t, certification.StatisticalRecord{}, nextSI.Stat, "expected stat to be reset")
 }
 
@@ -217,8 +217,8 @@ func Test_NewShardInfoFromGenesis(t *testing.T) {
 		require.Equal(t, pgEpoch1.Certificate.InputRecord.Hash, si.RootHash)
 		require.Equal(t, certification.StatisticalRecord{}, si.Stat)
 		require.Equal(t, map[string]uint64{"1111": 0}, si.Fees)
-		require.Equal(t, []byte{0xA0}, si.PrevEpochFees)
-		require.Equal(t, []byte{0x87, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, si.PrevEpochStat)
+		require.Equal(t, types.RawCBOR{0xA0}, si.PrevEpochFees)
+		require.Equal(t, types.RawCBOR{0x87, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, si.PrevEpochStat)
 		require.Equal(t, "", si.Leader)
 		require.Equal(t, "1111", si.LastCR.Technical.Leader)
 		require.Equal(t, si.Round+1, si.LastCR.Technical.Round)

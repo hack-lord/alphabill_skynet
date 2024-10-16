@@ -26,7 +26,7 @@ func NewShardInfoFromGenesis(pg *genesis.GenesisPartitionRecord, orc Orchestrati
 		Round:         pg.Certificate.InputRecord.RoundNumber,
 		Epoch:         pg.Certificate.InputRecord.Epoch,
 		RootHash:      pg.Certificate.InputRecord.Hash,
-		PrevEpochFees: []byte{0xA0}, // CBOR map(0)
+		PrevEpochFees: types.RawCBOR{0xA0}, // CBOR map(0)
 		LastCR: &certification.CertificationResponse{
 			Partition: pg.PartitionDescription.SystemIdentifier,
 			Shard:     types.ShardID{},
@@ -36,28 +36,29 @@ func NewShardInfoFromGenesis(pg *genesis.GenesisPartitionRecord, orc Orchestrati
 
 	var err error
 	if si.PrevEpochStat, err = types.Cbor.Marshal(si.Stat); err != nil {
-		return si, fmt.Errorf("init previous epoch stat: %w", err)
+		return nil, fmt.Errorf("init previous epoch stat: %w", err)
 	}
 
 	if err = si.Init(pg); err != nil {
-		return si, fmt.Errorf("shard info init: %w", err)
+		return nil, fmt.Errorf("shard info init: %w", err)
 	}
 
 	if si.LastCR.Technical, err = si.TechnicalRecord(nil, orc); err != nil {
-		return si, fmt.Errorf("building TechnicalRecord: %w", err)
+		return nil, fmt.Errorf("building TechnicalRecord: %w", err)
 	}
 
 	return si, nil
 }
 
 type ShardInfo struct {
+	_        struct{} `cbor:",toarray"`
 	Round    uint64
 	Epoch    uint64
 	RootHash []byte // last certified root hash
 
 	// statistical record of the previous epoch. As we only need
 	// it for hashing we keep it in serialized representation
-	PrevEpochStat []byte
+	PrevEpochStat types.RawCBOR
 
 	// statistical record of the current epoch
 	Stat certification.StatisticalRecord
@@ -65,7 +66,7 @@ type ShardInfo struct {
 	// per validator total, invariant fees of the previous epoch
 	// but as with statistical record of the previous epoch we need it
 	// for hashing so we keep it in serialized representation
-	PrevEpochFees []byte
+	PrevEpochFees types.RawCBOR
 
 	Fees   map[string]uint64 // per validator summary fees of the current epoch
 	Leader string            // identifier of the Round leader
@@ -217,9 +218,7 @@ func (si *ShardInfo) TechnicalRecord(req *certification.BlockCertificationReques
 func (si *ShardInfo) SetLatestCert(cert *certification.CertificationResponse) error {
 	si.m.Lock()
 	defer si.m.Unlock()
-
 	si.LastCR = cert
-	si.Epoch = cert.Technical.Epoch
 	return nil
 }
 
