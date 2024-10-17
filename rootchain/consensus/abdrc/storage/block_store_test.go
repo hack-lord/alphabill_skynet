@@ -342,3 +342,49 @@ func TestBlockStoreStoreLastVote(t *testing.T) {
 		require.EqualValues(t, 1, msg.(*abdrc.TimeoutMsg).Timeout.Round)
 	})
 }
+
+func Test_BlockStore_ShardInfo(t *testing.T) {
+	bStore := initBlockStoreFromGenesis(t)
+	// the initBlockStoreFromGenesis fills the store from global var "pg"
+	for _, partGenesis := range pg {
+		si, err := bStore.ShardInfo(partGenesis.PartitionDescription.SystemIdentifier, types.ShardID{})
+		require.NoError(t, err)
+		require.NotNil(t, si)
+		require.Equal(t, partGenesis.Certificate.InputRecord.Epoch, si.Epoch)
+		require.Equal(t, partGenesis.Certificate.InputRecord.RoundNumber, si.Round)
+		require.Equal(t, partGenesis.Certificate.InputRecord.Hash, si.RootHash)
+		require.Equal(t, partGenesis.Certificate, &si.LastCR.UC)
+		require.Equal(t, partGenesis.PartitionDescription.SystemIdentifier, si.LastCR.Partition)
+	}
+
+	// and an partition which shouldn't exist
+	si, err := bStore.ShardInfo(0xFFFFFFFF, types.ShardID{})
+	require.EqualError(t, err, `no shard info found for {FFFFFFFF : }`)
+	require.Nil(t, si)
+}
+
+func Test_BlockStore_StateRoundtrip(t *testing.T) {
+	storeA := initBlockStoreFromGenesis(t)
+	state := storeA.GetState()
+	require.NotNil(t, state)
+
+	db, err := memorydb.New()
+	require.NoError(t, err)
+	// state msg is used to init "shard info registry", the orchestration provides data which is not part of state msg
+	storeB, err := NewFromState(gocrypto.SHA256, state, db, partitions.NewOrchestration(&genesis.RootGenesis{Partitions: pg}))
+	require.NoError(t, err)
+	require.NotNil(t, storeB)
+
+	// two stores should have the same state now
+	require.Len(t, storeA.shardInfo, len(storeB.shardInfo))
+	for _, partGenesis := range pg {
+		siA, err := storeA.ShardInfo(partGenesis.PartitionDescription.SystemIdentifier, types.ShardID{})
+		require.NoError(t, err)
+		require.NotNil(t, siA)
+		siB, err := storeB.ShardInfo(partGenesis.PartitionDescription.SystemIdentifier, types.ShardID{})
+		require.NoError(t, err)
+		require.NotNil(t, siB)
+
+		require.Equal(t, siA, siB)
+	}
+}

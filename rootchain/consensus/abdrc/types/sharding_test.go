@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	abcrypto "github.com/alphabill-org/alphabill-go-base/crypto"
 	"github.com/alphabill-org/alphabill-go-base/types"
 	"github.com/alphabill-org/alphabill/network/protocol/certification"
 	"github.com/alphabill-org/alphabill/network/protocol/genesis"
@@ -89,6 +90,99 @@ func Test_shardInfo_Update(t *testing.T) {
 		cr.InputRecord.Hash = append(cr.InputRecord.Hash, 0)
 		si.update(cr)
 		require.EqualValues(t, 1, si.Stat.Blocks)
+	})
+}
+
+func Test_ShardInfo_ValidRequest(t *testing.T) {
+	signer, err := abcrypto.NewInMemorySecp256K1Signer()
+	require.NoError(t, err)
+	verifier, err := signer.Verifier()
+	require.NoError(t, err)
+
+	// shard info we test against
+	si := &ShardInfo{
+		Round:    3432,
+		Epoch:    3,
+		RootHash: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2},
+		LastCR: &certification.CertificationResponse{
+			Partition: 22,
+			Shard:     types.ShardID{},
+			UC: types.UnicityCertificate{
+				UnicitySeal: &types.UnicitySeal{RootChainRoundNumber: 5555555},
+			},
+		},
+		trustBase: map[string]abcrypto.Verifier{"1111": verifier},
+	}
+
+	// return BCR which is valid next request for "si" above (but not signed)
+	validBCR := func() *certification.BlockCertificationRequest {
+		return &certification.BlockCertificationRequest{
+			Partition:      si.LastCR.Partition,
+			Shard:          si.LastCR.Shard,
+			NodeIdentifier: "1111",
+			Leader:         "1111",
+			InputRecord: &types.InputRecord{
+				Version:      1,
+				RoundNumber:  si.Round + 1, // incoming request must be for next round
+				Epoch:        si.Epoch,
+				PreviousHash: si.RootHash,
+				Hash:         []byte{2, 2, 2, 2, 2, 6, 6, 6, 6, 6},
+				BlockHash:    []byte{1},
+				SummaryValue: []byte{2},
+			},
+			RootRoundNumber: si.LastCR.UC.UnicitySeal.RootChainRoundNumber,
+		}
+	}
+
+	t.Run("signature", func(t *testing.T) {
+		bcr := validBCR()
+		require.NoError(t, bcr.Sign(signer))
+		require.NoError(t, si.ValidRequest(bcr))
+		// changing some property should invalidate the signature
+		bcr.InputRecord.RoundNumber++
+		require.EqualError(t, si.ValidRequest(bcr), `invalid certification request: signature verification failed`)
+
+		bcr.NodeIdentifier = "unknown"
+		require.EqualError(t, si.ValidRequest(bcr), `invalid certification request: node "unknown" is not in the trustbase of the shard`)
+	})
+
+	t.Run("round number", func(t *testing.T) {
+		bcr := validBCR()
+		bcr.InputRecord.RoundNumber++
+		require.NoError(t, bcr.Sign(signer))
+		require.EqualError(t, si.ValidRequest(bcr), `expected round 3433, got 3434`)
+	})
+
+	t.Run("epoch", func(t *testing.T) {
+		bcr := validBCR()
+		bcr.InputRecord.Epoch++
+		require.NoError(t, bcr.Sign(signer))
+		require.EqualError(t, si.ValidRequest(bcr), `expected epoch 3, got 4`)
+	})
+
+	t.Run("leader", func(t *testing.T) {
+		bcr := validBCR()
+		bcr.Leader = ""
+		require.NoError(t, bcr.Sign(signer))
+		require.EqualError(t, si.ValidRequest(bcr), `unknown leader ID ""`)
+
+		bcr.Leader = "foobar"
+		require.NoError(t, bcr.Sign(signer))
+		require.EqualError(t, si.ValidRequest(bcr), `unknown leader ID "foobar"`)
+	})
+
+	t.Run("root hash", func(t *testing.T) {
+		bcr := validBCR()
+		bcr.InputRecord.PreviousHash = []byte{0}
+		require.NoError(t, bcr.Sign(signer))
+		require.EqualError(t, si.ValidRequest(bcr), `request has different root hash for last certified state`)
+	})
+
+	t.Run("root round", func(t *testing.T) {
+		bcr := validBCR()
+		bcr.RootRoundNumber--
+		require.NoError(t, bcr.Sign(signer))
+		require.EqualError(t, si.ValidRequest(bcr), `request root round number 5555554 does not match LUC root round 5555555`)
 	})
 }
 

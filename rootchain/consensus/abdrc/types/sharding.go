@@ -223,13 +223,6 @@ func (si *ShardInfo) SetLatestCert(cert *certification.CertificationResponse) er
 }
 
 func (si *ShardInfo) ValidRequest(req *certification.BlockCertificationRequest) error {
-	// we need the leader ID so we require that it's sent to us as part of the request
-	// however, per YP rootchain should select the shard leader (for the next round) and
-	// send it back as part of CertificationResponse (AB-1719)
-	if req.Leader == "" {
-		return errors.New("leader ID must be assigned")
-	}
-
 	if err := si.Verify(req.NodeIdentifier, req.IsValid); err != nil {
 		return fmt.Errorf("invalid certification request: %w", err)
 	}
@@ -247,7 +240,14 @@ func (si *ShardInfo) ValidRequest(req *certification.BlockCertificationRequest) 
 		return errors.New("request has different root hash for last certified state")
 	}
 	if req.RootRound() != si.LastCR.UC.GetRootRoundNumber() {
-		return fmt.Errorf("request root round number %v does not match luc root round %v", req.RootRound(), si.LastCR.UC.GetRootRoundNumber())
+		return fmt.Errorf("request root round number %v does not match LUC root round %v", req.RootRound(), si.LastCR.UC.GetRootRoundNumber())
+	}
+
+	// we need the leader ID so we require that it's sent to us as part of the request
+	// however, per YP rootchain should select the shard leader (for the next round) and
+	// send it back as part of CertificationResponse (AB-1719)
+	if _, ok := si.trustBase[req.Leader]; !ok {
+		return fmt.Errorf("unknown leader ID %q", req.Leader)
 	}
 
 	return nil
