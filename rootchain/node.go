@@ -162,11 +162,11 @@ func (v *Node) onHandshake(ctx context.Context, req *handshake.Handshake) error 
 	if err := req.IsValid(); err != nil {
 		return fmt.Errorf("invalid handshake request: %w", err)
 	}
-	SI, err := v.consensusManager.ShardInfo(req.Partition, req.Shard)
+	si, err := v.consensusManager.ShardInfo(req.Partition, req.Shard)
 	if err != nil {
 		return fmt.Errorf("reading partition %s certificate: %w", req.Partition, err)
 	}
-	if err = v.sendResponse(ctx, req.NodeIdentifier, SI.LastCR); err != nil {
+	if err = v.sendResponse(ctx, req.NodeIdentifier, si.LastCR); err != nil {
 		return fmt.Errorf("failed to send response: %w", err)
 	}
 	return nil
@@ -195,27 +195,27 @@ func (v *Node) onBlockCertificationRequest(ctx context.Context, req *certificati
 		v.bcrCount.Add(ctx, 1, metric.WithAttributeSet(attribute.NewSet(observability.ErrStatus(rErr), partition)))
 	}()
 
-	SI, err := v.consensusManager.ShardInfo(sysID, req.Shard)
+	si, err := v.consensusManager.ShardInfo(sysID, req.Shard)
 	if err != nil {
 		return fmt.Errorf("acquiring shard info: %w", err)
 	}
 	v.subscription.Subscribe(sysID, req.NodeIdentifier)
 	// we got the shard info thus it's a valid partition/shard
-	if err := SI.ValidRequest(req); err != nil {
+	if err := si.ValidRequest(req); err != nil {
 		err = fmt.Errorf("invalid block certification request: %w", err)
-		if se := v.sendResponse(ctx, req.NodeIdentifier, SI.LastCR); se != nil {
+		if se := v.sendResponse(ctx, req.NodeIdentifier, si.LastCR); se != nil {
 			err = errors.Join(err, fmt.Errorf("sending latest cert: %w", se))
 		}
 		return err
 	}
 
 	// check if consensus is already achieved
-	if res := v.incomingRequests.IsConsensusReceived(sysID, req.Shard, SI); res != QuorumInProgress {
+	if res := v.incomingRequests.IsConsensusReceived(sysID, req.Shard, si); res != QuorumInProgress {
 		v.log.DebugContext(ctx, fmt.Sprintf("dropping stale block certification request (%s) for partition %s", res, sysID))
 		return
 	}
 	// store the new request and see if quorum is now achieved
-	res, requests, err := v.incomingRequests.Add(req, SI)
+	res, requests, err := v.incomingRequests.Add(req, si)
 	if err != nil {
 		return fmt.Errorf("storing request: %w", err)
 	}

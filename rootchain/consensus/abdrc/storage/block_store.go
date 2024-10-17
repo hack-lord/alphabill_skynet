@@ -300,11 +300,10 @@ func (x *BlockStore) updateCertificateCache(certs []*certification.Certification
 		if !ok {
 			return fmt.Errorf("shard info not found %v", siKey)
 		}
-		newEpoch := si.Epoch != cr.Technical.Epoch
 		if err := si.SetLatestCert(cr); err != nil {
 			return fmt.Errorf("updating certificate in ShardInfo(%v): %w", siKey, err)
 		}
-		if newEpoch {
+		if si.Epoch != cr.Technical.Epoch {
 			partGene, err := x.orchestration.ShardConfig(cr.Partition, cr.Shard, cr.Technical.Epoch)
 			if err != nil {
 				return fmt.Errorf("reading config of the next epoch: %w", err)

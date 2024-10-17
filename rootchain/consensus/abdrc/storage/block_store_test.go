@@ -3,17 +3,21 @@ package storage
 import (
 	gocrypto "crypto"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/alphabill-org/alphabill-go-base/types"
 	test "github.com/alphabill-org/alphabill/internal/testutils"
+	"github.com/alphabill-org/alphabill/keyvaluedb/boltdb"
 	"github.com/alphabill-org/alphabill/keyvaluedb/memorydb"
 	"github.com/alphabill-org/alphabill/network/protocol/abdrc"
+	"github.com/alphabill-org/alphabill/network/protocol/certification"
 	"github.com/alphabill-org/alphabill/network/protocol/genesis"
 	drctypes "github.com/alphabill-org/alphabill/rootchain/consensus/abdrc/types"
 	"github.com/alphabill-org/alphabill/rootchain/partitions"
-	"github.com/stretchr/testify/require"
 )
 
 type MockAlwaysOkBlockVerifier struct {
@@ -387,4 +391,63 @@ func Test_BlockStore_StateRoundtrip(t *testing.T) {
 
 		require.Equal(t, siA, siB)
 	}
+}
+
+func Test_BlockStore_persistance(t *testing.T) {
+	dbPath := t.TempDir()
+	// init new (empty) DB from genesis
+	db, err := boltdb.New(filepath.Join(dbPath, "blocks.db"))
+	require.NoError(t, err)
+	bStore, err := New(gocrypto.SHA256, pg, db, partitions.NewOrchestration(&genesis.RootGenesis{Partitions: pg}))
+	require.NoError(t, err)
+	require.NotNil(t, bStore)
+
+	// change some shard info and persist it
+	certs := []*certification.CertificationResponse{
+		{
+			Partition: pg[0].PartitionDescription.SystemIdentifier,
+			Shard:     types.ShardID{},
+			Technical: certification.TechnicalRecord{
+				Round:    8876,
+				Epoch:    pg[0].Certificate.InputRecord.Epoch,
+				Leader:   "1234567890",
+				StatHash: test.RandomBytes(32),
+				FeeHash:  test.RandomBytes(32),
+			},
+			UC: types.UnicityCertificate{
+				Version: 1,
+				InputRecord: &types.InputRecord{
+					Version:     1,
+					RoundNumber: 8875,
+					Epoch:       pg[0].Certificate.InputRecord.Epoch,
+					Hash:        test.RandomBytes(32),
+				},
+			},
+		},
+	}
+	// updateCertificateCache updates only LastCR unless it's epoch change too
+	// so set some SI properties manually before triggering storing ths state
+	si, err := bStore.ShardInfo(pg[0].PartitionDescription.SystemIdentifier, types.ShardID{})
+	require.NoError(t, err)
+	si.Round = certs[0].Technical.Round
+	si.RootHash = certs[0].UC.InputRecord.Hash
+	require.NoError(t, bStore.updateCertificateCache(certs))
+
+	// load new DB instance from the non-empty file - we
+	// must get the state we had
+	require.NoError(t, db.Close())
+	db, err = boltdb.New(filepath.Join(dbPath, "blocks.db"))
+	require.NoError(t, err)
+	bStore, err = New(gocrypto.SHA256, pg, db, partitions.NewOrchestration(&genesis.RootGenesis{Partitions: pg}))
+	require.NoError(t, err)
+
+	cr := certs[0]
+	si, err = bStore.ShardInfo(pg[0].PartitionDescription.SystemIdentifier, types.ShardID{})
+	require.NoError(t, err)
+	require.NotNil(t, si)
+	require.Equal(t, cr.Technical.Epoch, si.Epoch)
+	require.Equal(t, cr.Technical.Round, si.Round)
+	require.Equal(t, cr.UC.InputRecord.Hash, si.RootHash)
+	require.Equal(t, cr.UC, si.LastCR.UC)
+	require.Equal(t, cr.Technical, si.LastCR.Technical)
 }
